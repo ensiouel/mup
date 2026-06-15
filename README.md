@@ -106,6 +106,17 @@ let body = page.render_fragment("body");
 
 ## Basic Usage
 
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
+
 ```rust
 use mup::{Markup, markup};
 
@@ -119,6 +130,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -128,7 +142,23 @@ let html = markup! {
 </html>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Text, Values, Raw HTML
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, markup};
@@ -154,6 +184,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div>
@@ -165,7 +198,23 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Tags And Selectors
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -181,6 +230,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div class="root dynamic-class" id="hero">
@@ -188,9 +240,25 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Div Shorthand
 
 Starting a node with `.class` or `#id` creates a `div`.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -210,6 +278,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div class="panel">
@@ -225,7 +296,23 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Custom And Dynamic Tags
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -243,6 +330,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <my-block class="foo">
@@ -254,9 +344,25 @@ let html = markup! {
 </my-dynamic>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Void Elements
 
 Use `;` for HTML void elements. Non-void tags still need `{ ... }`.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -270,6 +376,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div>
@@ -279,7 +388,23 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Attributes
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -296,12 +421,31 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <button type="button" disabled checked>attributes</button>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Dynamic Attribute Values
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -322,6 +466,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div title="optional title" aria-label="cow attr value">
@@ -329,7 +476,23 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Dynamic Attribute Names
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -343,6 +506,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div data-dynamic="dynamic attribute name">
@@ -350,10 +516,26 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Attribute Spreads
 
 Use `..attrs` to spread maps, pair arrays, or arrays of boolean attribute
 names.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -379,6 +561,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div>
@@ -390,7 +575,23 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Function And Macro Calls
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -412,6 +613,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div>
@@ -421,10 +625,26 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Slots
 
 `Markup::slot()` marks where children are inserted when reusable markup is
 rendered as `@shell { ... }`.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, markup};
@@ -444,6 +664,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div class="shell">
@@ -453,12 +676,28 @@ let html = markup! {
 </div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Fragments
 
 `Markup::fragment(name)` marks a named part of markup. The full markup renders
 normally, and `render_fragment(name)` renders only that fragment body.
 Use `try_render_fragment(name)` when a missing fragment should return `None`
 instead of panicking.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, markup};
@@ -475,13 +714,32 @@ let page = markup! {
 let fragment = page.render_fragment("body");
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <div>content</div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 Nested fragments are rendered as normal content when their parent fragment is
 rendered.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, markup};
@@ -502,6 +760,9 @@ let outer = page.render_fragment("outer");
 let inner = page.render_fragment("inner");
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <!-- outer -->
 inner
@@ -511,8 +772,24 @@ inner
 <div>content</div>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 Fragments can contain slots, so children passed to reusable markup are also
 available through `render_fragment`.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, markup};
@@ -534,13 +811,32 @@ let page = markup! {
 let body = page.render_fragment("body");
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <p>inserted children</p>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Components
 
 Use `@children` inside a component body to render children passed at call site.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{component, markup};
@@ -571,6 +867,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <section class="layout">
@@ -579,10 +878,26 @@ let html = markup! {
 </section>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Component Slot Alias
 
 Inside components, `@Markup::slot()` is also accepted as an alias for
 `@children`.
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, component, markup};
@@ -613,6 +928,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 
 <article class="card">
@@ -621,7 +939,23 @@ let html = markup! {
 </article>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Struct Literal Components
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{component, markup};
@@ -647,13 +981,32 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <span class="badge info" id="info">
   badge body
 </span>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Custom Render
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{Markup, Render, markup};
@@ -682,11 +1035,30 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <a href="/docs">custom Render implementation</a>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Enum Components
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::{component, markup};
@@ -725,6 +1097,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <p>
     statuses:
@@ -734,7 +1109,23 @@ let html = markup! {
 </p>
 ```
 
+</td>
+</tr>
+</tbody>
+</table>
+
 ## Control Flow
+
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>HTML result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
 ```rust
 use mup::markup;
@@ -772,6 +1163,9 @@ let html = markup! {
 };
 ```
 
+</td>
+<td valign="top">
+
 ```html
 <p>
     if branch with local binding
@@ -787,3 +1181,8 @@ let html = markup! {
     matched user: Ada
 </p>
 ```
+
+</td>
+</tr>
+</tbody>
+</table>
