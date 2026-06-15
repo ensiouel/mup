@@ -1,6 +1,6 @@
 [package]
 name = "mup"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A small Rust HTML DSL for type-checked server-rendered markup."
 license = "MIT"
