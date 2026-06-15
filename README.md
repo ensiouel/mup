@@ -61,7 +61,7 @@ responses.
 
 Dynamic tags, dynamic attribute names, and attribute spreads:
 
-```rust
+```rust,ignore
 let html = markup! {
     (tag) (attr)=("/todos") ..attrs {
         "body"
@@ -71,7 +71,7 @@ let html = markup! {
 
 Custom elements with hyphenated names use the same tag syntax:
 
-```rust
+```rust,ignore
 let html = markup! {
     my-block.active {
         my-block-item { "item" }
@@ -81,7 +81,7 @@ let html = markup! {
 
 Components receive children directly where they are used:
 
-```rust
+```rust,ignore
 let html = markup! {
     @layout {
         p { "Body" }
@@ -91,7 +91,7 @@ let html = markup! {
 
 Named fragments make partial responses explicit:
 
-```rust
+```rust,ignore
 let page = markup! {
     div {
         "header"
