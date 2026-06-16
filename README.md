@@ -27,7 +27,8 @@ Use `mup` when you want:
 - Components that can receive children directly at the call site.
 - Named fragments for rendering partial responses, especially for HTMX-style
   endpoints.
-- A compact syntax where Rust expressions are consistently wrapped in `(...)`.
+- A compact syntax where arbitrary Rust expressions are wrapped in `(...)`, with
+  a short form for attribute values produced by function calls.
 
 The core idea is to keep static HTML visually close to HTML, while making the
 dynamic parts explicit and local.
@@ -451,15 +452,20 @@ let html = markup! {
 use mup::markup;
 use std::borrow::Cow;
 
+fn label() -> String {
+    "function attr value".to_owned()
+}
+
 let title = Some("optional title");
 let empty: Option< & str> = None;
-let label: Cow<'static, str> = Cow::Borrowed("cow attr value");
+let cow_label: Cow<'static, str> = Cow::Borrowed("cow attr value");
 
 let html = markup! {
     div
+        "data-label"=label()
         title=(title)
         aria-describedby=(empty) // None is skipped.
-        aria-label=(label)
+        aria-label=(cow_label)
     {
         "dynamic values"
     }
@@ -471,7 +477,7 @@ let html = markup! {
 
 ```html
 
-<div title="optional title" aria-label="cow attr value">
+<div data-label="function attr value" title="optional title" aria-label="cow attr value">
     dynamic values
 </div>
 ```

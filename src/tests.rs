@@ -172,6 +172,36 @@ fn supports_dynamic_attributes() {
 }
 
 #[test]
+fn supports_function_call_attribute_values_without_outer_parentheses() {
+    fn foo() -> String {
+        "foo".to_owned()
+    }
+
+    fn bar(value: &str) -> String {
+        format!("bar-{value}")
+    }
+
+    let attr = "data-dynamic";
+
+    let actual = markup! {
+        div
+            foo=foo()
+            data-bar=bar("baz")
+            data-path=String::from("path")
+            "data-literal-call"=bar("literal")
+            "data-literal-expr"=(String::from("expr"))
+            "data-literal-value"="value"
+            (attr)=foo()
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div foo="foo" data-bar="bar-baz" data-path="path" data-literal-call="bar-literal" data-literal-expr="expr" data-literal-value="value" data-dynamic="foo"></div>"#
+    );
+}
+
+#[test]
 fn supports_explicit_attribute_spread() {
     let map = HashMap::from([("id", "foo"), ("hx-get", "/home")]);
 
