@@ -725,6 +725,59 @@ let html = markup! {
 </section>
 ```
 
+## Generic Components
+
+`component!` accepts Rust generics on components and matching inherent `impl`
+blocks, including lifetimes, type parameters, const parameters, inline bounds,
+defaults, and `where` clauses.
+
+**Rust**
+
+```rust
+use mup::{Render, component, markup};
+
+component! {
+    struct Layout<'a, T>
+    where
+        T: Render,
+    {
+        title: &'a str,
+        badge: T,
+    } {
+        main {
+            h1 { @title }
+            p { @badge }
+            @children
+        }
+    }
+
+    impl<'a, T> Layout<'a, T>
+    where
+        T: Render,
+    {
+        fn new(title: &'a str, badge: T) -> Self {
+            Self { title, badge }
+        }
+    }
+}
+
+let html = markup! {
+    @Layout::new("Components", "generic badge") {
+        p { "children" }
+    }
+};
+```
+
+**HTML result**
+
+```html
+<main>
+    <h1>Components</h1>
+    <p>generic badge</p>
+    <p>children</p>
+</main>
+```
+
 ## Component Slot Alias
 
 Inside components, `@Markup::slot()` is also accepted as an alias for

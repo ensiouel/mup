@@ -21,6 +21,19 @@ macro_rules! component {
 
     (
         $(#[$meta:meta])*
+        $vis:vis struct $name:ident < $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            struct
+            [[$(#[$meta])*] [$vis] [$name]]
+            []
+            [@]
+            $($tail)*
+        }
+    };
+
+    (
+        $(#[$meta:meta])*
         $vis:vis struct $name:ident {
             $($field_vis:vis $field:ident : $ty:ty),* $(,)?
         } {
@@ -43,12 +56,23 @@ macro_rules! component {
 
     (
         $(#[$meta:meta])*
+        $vis:vis enum $name:ident < $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            enum
+            [[$(#[$meta])*] [$vis] [$name]]
+            []
+            [@]
+            $($tail)*
+        }
+    };
+
+    (
+        $(#[$meta:meta])*
         $vis:vis enum $name:ident {
-            $($variant:ident),* $(,)?
+            $($variant:tt)*
         } {
-            $(
-                $arm_variant:ident => { $($body:tt)* }
-            ),* $(,)?
+            $($arm:tt)*
         }
 
         $($rest:tt)*
@@ -56,17 +80,39 @@ macro_rules! component {
         $crate::__markup_component_item! {
             $(#[$meta])*
             $vis enum $name {
-                $($variant),*
+                $($variant)*
             }
 
             {
-                $(
-                    $arm_variant => { $($body)* }
-                ),*
+                $($arm)*
             }
         }
 
         $crate::component! { $($rest)* }
+    };
+
+    (
+        impl < $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            impl_generics
+            []
+            []
+            [@]
+            $($tail)*
+        }
+    };
+
+    (
+        impl $name:ident < $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            impl_ty_generics
+            [[$name]]
+            []
+            [@]
+            $($tail)*
+        }
     };
 
     (
@@ -86,33 +132,763 @@ macro_rules! component {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_component_collect_generics {
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)+]
+        [@]
+        >
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)+]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [@ @]
+        >>
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* >]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [@ @ $($depth:tt)+]
+        >>
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* > >]
+            [$($depth)+]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [@ @ @]
+        >>>
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* > >]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [@ @ @ $($depth:tt)+]
+        >>>
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* > > >]
+            [$($depth)+]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [@ $($depth:tt)+]
+        >
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* >]
+            [$($depth)+]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [$($depth:tt)*]
+        <
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* <]
+            [@ $($depth)*]
+            $($tail)*
+        }
+    };
+
+    (
+        $mode:ident
+        [$($state:tt)*]
+        [$($generics:tt)*]
+        [$($depth:tt)*]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            $mode
+            [$($state)*]
+            [$($generics)* $next]
+            [$($depth)*]
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_after_generics {
+    (
+        struct
+        [[$(#[$meta:meta])*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        {
+            $($field_vis:vis $field:ident : $ty:ty),* $(,)?
+        } {
+            $($body:tt)*
+        }
+
+        $($rest:tt)*
+    ) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            struct
+            [
+                [$(#[$meta])*]
+                [$vis]
+                [$name]
+                [$($generics)+]
+                []
+                [$($field_vis $field : $ty),*]
+                [$($body)*]
+            ]
+            []
+            []
+            $($generics)+
+        }
+
+        $crate::component! { $($rest)* }
+    };
+
+    (
+        struct
+        [[$($meta:tt)*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_struct_where! {
+            [[$($meta)*] [$vis] [$name]]
+            [$($generics)+]
+            [$next]
+            $($tail)*
+        }
+    };
+
+    (
+        enum
+        [[$(#[$meta:meta])*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        {
+            $($variant:tt)*
+        } {
+            $($arm:tt)*
+        }
+
+        $($rest:tt)*
+    ) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            enum
+            [
+                [$(#[$meta])*]
+                [$vis]
+                [$name]
+                [$($generics)+]
+                []
+                [$($variant)*]
+                [$($arm)*]
+            ]
+            []
+            []
+            $($generics)+
+        }
+
+        $crate::component! { $($rest)* }
+    };
+
+    (
+        enum
+        [[$($meta:tt)*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_enum_where! {
+            [[$($meta)*] [$vis] [$name]]
+            [$($generics)+]
+            [$next]
+            $($tail)*
+        }
+    };
+
+    (
+        impl_generics
+        []
+        [$($impl_generics:tt)+]
+        $name:ident < $($tail:tt)*
+    ) => {
+        $crate::__markup_component_collect_generics! {
+            impl_ty_generics
+            [[< $($impl_generics)+ >] [$name]]
+            []
+            [@]
+            $($tail)*
+        }
+    };
+
+    (
+        impl_generics
+        []
+        [$($impl_generics:tt)+]
+        $name:ident
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_parse_impl! {
+            [< $($impl_generics)+ > $name]
+            []
+            $($tail)*
+        }
+    };
+
+    (
+        impl_ty_generics
+        [[$($impl_generics:tt)+] [$name:ident]]
+        [$($ty_generics:tt)+]
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_parse_impl! {
+            [$($impl_generics)+ $name < $($ty_generics)+ >]
+            []
+            $($tail)*
+        }
+    };
+
+    (
+        impl_ty_generics
+        [[$name:ident]]
+        [$($ty_generics:tt)+]
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_parse_impl! {
+            [$name < $($ty_generics)+ >]
+            []
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_after_struct_where {
+    (
+        [[$(#[$meta:meta])*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        [$($where_clause:tt)*]
+        {
+            $($field_vis:vis $field:ident : $ty:ty),* $(,)?
+        } {
+            $($body:tt)*
+        }
+
+        $($rest:tt)*
+    ) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            struct
+            [
+                [$(#[$meta])*]
+                [$vis]
+                [$name]
+                [$($generics)+]
+                [$($where_clause)*]
+                [$($field_vis $field : $ty),*]
+                [$($body)*]
+            ]
+            []
+            []
+            $($generics)+
+        }
+
+        $crate::component! { $($rest)* }
+    };
+
+    (
+        [[$($meta:tt)*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        [$($where_clause:tt)*]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_struct_where! {
+            [[$($meta)*] [$vis] [$name]]
+            [$($generics)+]
+            [$($where_clause)* $next]
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_after_enum_where {
+    (
+        [[$(#[$meta:meta])*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        [$($where_clause:tt)*]
+        {
+            $($variant:tt)*
+        } {
+            $($arm:tt)*
+        }
+
+        $($rest:tt)*
+    ) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            enum
+            [
+                [$(#[$meta])*]
+                [$vis]
+                [$name]
+                [$($generics)+]
+                [$($where_clause)*]
+                [$($variant)*]
+                [$($arm)*]
+            ]
+            []
+            []
+            $($generics)+
+        }
+
+        $crate::component! { $($rest)* }
+    };
+
+    (
+        [[$($meta:tt)*] [$vis:vis] [$name:ident]]
+        [$($generics:tt)+]
+        [$($where_clause:tt)*]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_after_enum_where! {
+            [[$($meta)*] [$vis] [$name]]
+            [$($generics)+]
+            [$($where_clause)* $next]
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_parse_impl {
+    (
+        [$($header:tt)+]
+        [$($where_clause:tt)*]
+        {
+            $($impl_body:tt)*
+        }
+
+        $($rest:tt)*
+    ) => {
+        impl $($header)+ $($where_clause)* {
+            $($impl_body)*
+        }
+
+        $crate::component! { $($rest)* }
+    };
+
+    (
+        [$($header:tt)+]
+        [$($where_clause:tt)*]
+        $next:tt
+        $($tail:tt)*
+    ) => {
+        $crate::__markup_component_parse_impl! {
+            [$($header)+]
+            [$($where_clause)* $next]
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_generic_args {
+    (@parse $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*]) => {
+        $crate::__markup_component_generic_args_finish! {
+            $mode
+            [$($args)*]
+            [$($impl_params)*]
+            $($state)*
+        }
+    };
+
+    (@parse $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] , $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            $($tail)*
+        }
+    };
+
+    (@parse $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] const $name:ident $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_param
+            $mode
+            [$($state)*]
+            [$($args)* $name,]
+            [$($impl_params)*]
+            [const $name]
+            $($tail)*
+        }
+    };
+
+    (@parse $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] $lifetime:lifetime $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_param
+            $mode
+            [$($state)*]
+            [$($args)* $lifetime,]
+            [$($impl_params)*]
+            [$lifetime]
+            $($tail)*
+        }
+    };
+
+    (@parse $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] $name:ident $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_param
+            $mode
+            [$($state)*]
+            [$($args)* $name,]
+            [$($impl_params)*]
+            [$name]
+            $($tail)*
+        }
+    };
+
+    (@copy_param $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] , $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)* $($param)*,]
+            $($tail)*
+        }
+    };
+
+    (@copy_param $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] = $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @skip_default
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)*]
+            []
+            $($tail)*
+        }
+    };
+
+    (@copy_param $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*]) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)* $($param)*]
+        }
+    };
+
+    (@copy_param $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] < $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_angle
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* <]
+            [@]
+            $($tail)*
+        }
+    };
+
+    (@copy_param $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] $next:tt $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_param
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* $next]
+            $($tail)*
+        }
+    };
+
+    (@copy_angle $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [@] > $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_param
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* >]
+            $($tail)*
+        }
+    };
+
+    (@copy_angle $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [@ $($depth:tt)+] > $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_angle
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* >]
+            [$($depth)+]
+            $($tail)*
+        }
+    };
+
+    (@copy_angle $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [$($depth:tt)*] < $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_angle
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* <]
+            [@ $($depth)*]
+            $($tail)*
+        }
+    };
+
+    (@copy_angle $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [$($depth:tt)*] $next:tt $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @copy_angle
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)* $next]
+            [$($depth)*]
+            $($tail)*
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [] , $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)* $($param)*,]
+            $($tail)*
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] []) => {
+        $crate::__markup_component_generic_args! {
+            @parse
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)* $($param)*]
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [$($depth:tt)*] < $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @skip_default
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)*]
+            [@ $($depth)*]
+            $($tail)*
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [@] > $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @skip_default
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)*]
+            []
+            $($tail)*
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [@ $($depth:tt)+] > $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @skip_default
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)*]
+            [$($depth)+]
+            $($tail)*
+        }
+    };
+
+    (@skip_default $mode:ident [$($state:tt)*] [$($args:tt)*] [$($impl_params:tt)*] [$($param:tt)*] [$($depth:tt)*] $next:tt $($tail:tt)*) => {
+        $crate::__markup_component_generic_args! {
+            @skip_default
+            $mode
+            [$($state)*]
+            [$($args)*]
+            [$($impl_params)*]
+            [$($param)*]
+            [$($depth)*]
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_generic_args_finish {
+    (
+        struct
+        [$($args:tt)*]
+        [$($impl_params:tt)*]
+        [$(#[$meta:meta])*]
+        [$vis:vis]
+        [$name:ident]
+        [$($decl_generics:tt)+]
+        [$($where_clause:tt)*]
+        [$($field_vis:vis $field:ident : $ty:ty),*]
+        [$($body:tt)*]
+    ) => {
+        $(#[$meta])*
+        $vis struct $name < $($decl_generics)+ > $($where_clause)* {
+            $($field_vis $field: $ty),*
+        }
+
+        impl < $($impl_params)* > $crate::Render for $name < $($args)* > $($where_clause)* {
+            fn render(&self, __markup_children: ::std::option::Option<$crate::Markup>) -> $crate::Markup {
+                let _ = &__markup_children;
+                $(
+                    let $field = &self.$field;
+                )*
+
+                $crate::__markup_component_markup!(__markup_children; $($body)*)
+            }
+        }
+    };
+
+    (
+        enum
+        [$($args:tt)*]
+        [$($impl_params:tt)*]
+        [$(#[$meta:meta])*]
+        [$vis:vis]
+        [$name:ident]
+        [$($decl_generics:tt)+]
+        [$($where_clause:tt)*]
+        [$($variant:tt)*]
+        [$($arm:tt)*]
+    ) => {
+        $(#[$meta])*
+        $vis enum $name < $($decl_generics)+ > $($where_clause)* {
+            $($variant)*
+        }
+
+        impl < $($impl_params)* > $crate::Render for $name < $($args)* > $($where_clause)* {
+            fn render(&self, __markup_children: ::std::option::Option<$crate::Markup>) -> $crate::Markup {
+                let _ = &__markup_children;
+                $crate::__markup_component_enum_render! {
+                    __markup_children;
+                    self;
+                    $name;
+                    []
+                    $($arm)*
+                }
+            }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_component_item {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident {
-            $($variant:ident),* $(,)?
+            $($variant:tt)*
         }
 
         {
-            $(
-                $arm_variant:ident => { $($body:tt)* }
-            ),* $(,)?
+            $($arm:tt)*
         }
     ) => {
         $(#[$meta])*
         $vis enum $name {
-            $($variant),*
+            $($variant)*
         }
 
         impl $crate::Render for $name {
             fn render(&self, __markup_children: ::std::option::Option<$crate::Markup>) -> $crate::Markup {
                 let _ = &__markup_children;
-                match self {
-                    $(
-                        $name :: $arm_variant => {
-                            $crate::__markup_component_markup!(__markup_children; $($body)*)
-                        }
-                    )*
+                $crate::__markup_component_enum_render! {
+                    __markup_children;
+                    self;
+                    $name;
+                    []
+                    $($arm)*
                 }
             }
         }
@@ -140,6 +916,103 @@ macro_rules! __markup_component_item {
 
                 $crate::__markup_component_markup!(__markup_children; $($body)*)
             }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_enum_render {
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*]) => {
+        match $value {
+            $($arms)*
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident => { $($body:tt)* } , $($rest:tt)*) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
+            $($rest)*
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident => { $($body:tt)* }) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident ( $($pattern:tt)* ) => { $($body:tt)* } , $($rest:tt)*) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant ( $($pattern)* ) => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
+            $($rest)*
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident ( $($pattern:tt)* ) => { $($body:tt)* }) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant ( $($pattern)* ) => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident { $($pattern:tt)* } => { $($body:tt)* } , $($rest:tt)*) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant { $($pattern)* } => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
+            $($rest)*
+        }
+    };
+
+    ($children:ident; $value:expr; $name:ident; [$($arms:tt)*] $variant:ident { $($pattern:tt)* } => { $($body:tt)* }) => {
+        $crate::__markup_component_enum_render! {
+            $children;
+            $value;
+            $name;
+            [
+                $($arms)*
+                $name :: $variant { $($pattern)* } => {
+                    $crate::__markup_component_markup!($children; $($body)*)
+                },
+            ]
         }
     };
 }

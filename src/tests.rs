@@ -704,6 +704,96 @@ fn component_macro_declares_struct_and_render_impl() {
 }
 
 #[test]
+fn component_macro_supports_lifetimes_and_generics() {
+    component! {
+        struct Field<'a, T: Render + Clone = String, const N: usize = 1>
+        where
+            T: Render + Clone,
+        {
+            pub label: &'a str,
+            pub value: T,
+            pub _slots: [(); N],
+        } {
+            span.field {
+                @label
+                ": "
+                @value
+                " / "
+                @N
+            }
+        }
+
+        impl<'a, T: Render + Clone, const N: usize> Field<'a, T, N>
+        where
+            T: Render + Clone,
+        {
+            fn new(label: &'a str, value: T, _slots: [(); N]) -> Self {
+                Self {
+                    label,
+                    value,
+                    _slots,
+                }
+            }
+        }
+
+        impl<'a, T> Field<'a, Option<T>, 1>
+        where
+            Option<T>: Render + Clone,
+        {
+            fn from_option(label: &'a str, value: Option<T>) -> Self {
+                Self {
+                    label,
+                    value,
+                    _slots: [(); 1],
+                }
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Field::new("name", "Mup".to_owned(), [(); 2])
+        @Field::from_option("maybe", Some("optional".to_owned()))
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<span class="field">name: Mup / 2</span><span class="field">maybe: optional / 1</span>"#
+    );
+}
+
+#[test]
+fn component_macro_supports_generic_enums() {
+    component! {
+        enum Marker<'a, T: Render> {
+            Borrowed(&'a T),
+            Owned { value: T },
+        } {
+            Borrowed(value) => {
+                span.borrowed { @value }
+            },
+            Owned { value } => {
+                span.owned { @value }
+            },
+        }
+    }
+
+    let borrowed_text = "borrowed".to_owned();
+    let borrowed = Marker::Borrowed(&borrowed_text);
+    let owned = Marker::Owned {
+        value: "owned".to_owned(),
+    };
+    let actual = markup! {
+        @borrowed
+        @owned
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<span class="borrowed">borrowed</span><span class="owned">owned</span>"#
+    );
+}
+
+#[test]
 fn component_macro_slot_alias_does_not_conflict_with_children_field() {
     component! {
         struct Panel {
