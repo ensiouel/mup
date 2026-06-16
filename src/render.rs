@@ -2,7 +2,14 @@ use crate::Markup;
 use crate::html::{escape_text_into, push_display};
 use std::borrow::Cow;
 
+/// Converts Rust values into [`Markup`].
+///
+/// Implement this trait for application types that should be renderable with
+/// `@value` inside `markup!` or as components with children.
 pub trait Render {
+    /// Renders this value.
+    ///
+    /// `children` is `Some` when the value is rendered as `@value { ... }`.
     fn render(&self, children: Option<Markup>) -> Markup;
 }
 

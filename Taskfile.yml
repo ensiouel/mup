@@ -1,0 +1,42 @@
+version: "3"
+
+vars:
+  CHANGELOG: CHANGELOG.md
+  CLIFF_CONFIG: cliff.toml
+
+tasks:
+  changelog:
+    desc: Generate CHANGELOG.md from git history with git-cliff
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is required. Install it with: cargo install git-cliff"
+    cmds:
+      - git cliff --config {{.CLIFF_CONFIG}} --output {{.CHANGELOG}}
+
+  changelog:release:
+    desc: Prepend a new release section from unreleased commits (usage VERSION=v0.3.0)
+    requires:
+      vars: [ VERSION ]
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is required. Install it with: cargo install git-cliff"
+      - sh: test -f {{.CHANGELOG}}
+        msg: "{{.CHANGELOG}} must exist before using --prepend"
+    cmds:
+      - git cliff --config {{.CLIFF_CONFIG}} --unreleased --tag {{.VERSION}} --prepend {{.CHANGELOG}}
+
+  changelog:unreleased:
+    desc: Print only unreleased commits without modifying CHANGELOG.md
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is required. Install it with: cargo install git-cliff"
+    cmds:
+      - git cliff --config {{.CLIFF_CONFIG}} --unreleased
+
+  changelog:preview:
+    desc: Print the generated changelog without modifying CHANGELOG.md
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is required. Install it with: cargo install git-cliff"
+    cmds:
+      - git cliff --config {{.CLIFF_CONFIG}}

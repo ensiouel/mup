@@ -1,5 +1,10 @@
 use std::fmt;
 
+/// Rendered HTML plus optional template metadata for slots and fragments.
+///
+/// Most values are created with [`markup!`](crate::markup). `Markup` is escaped
+/// by default when rendered from strings; use [`Markup::raw`] only for trusted
+/// HTML that should be inserted as-is.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Markup {
     html: String,
@@ -73,11 +78,16 @@ impl Default for Markup {
 }
 
 impl Markup {
+    /// Creates empty markup.
     #[must_use]
     pub fn new() -> Self {
         Self::raw(String::new())
     }
 
+    /// Creates markup from trusted raw HTML without escaping.
+    ///
+    /// This is intentionally explicit because it bypasses the default escaping
+    /// used by `markup!`, `Render for str`, and attribute rendering.
     #[must_use]
     pub fn raw(html: impl Into<String>) -> Self {
         Self {
@@ -86,11 +96,15 @@ impl Markup {
         }
     }
 
+    /// Creates a slot placeholder that accepts children later.
     #[must_use]
     pub fn slot() -> Self {
         Self::from_parts(vec![MarkupPart::Children])
     }
 
+    /// Creates a named fragment placeholder.
+    ///
+    /// The fragment body is supplied by the children rendered at the call site.
     #[must_use]
     pub fn fragment(name: impl Into<String>) -> Self {
         Self::from_parts(vec![MarkupPart::Fragment {
@@ -99,26 +113,33 @@ impl Markup {
         }])
     }
 
+    /// Returns the HTML5 doctype.
     #[must_use]
     pub fn doctype() -> Self {
         Self::raw("<!DOCTYPE html>")
     }
 
+    /// Returns the rendered HTML string.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.html
     }
 
+    /// Consumes this markup and returns the rendered HTML string.
     #[must_use]
     pub fn into_string(self) -> String {
         self.html
     }
 
+    /// Returns `true` when this markup has no rendered HTML and no template
+    /// metadata.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.html.is_empty() && self.template.is_none()
     }
 
+    /// Returns `true` when this markup contains a slot directly or inside a
+    /// fragment.
     #[must_use]
     pub fn accepts_children(&self) -> bool {
         self.template
@@ -126,6 +147,9 @@ impl Markup {
             .is_some_and(|parts| parts.iter().any(MarkupPart::accepts_children))
     }
 
+    /// Renders this markup with children inserted into its slots.
+    ///
+    /// Panics when the markup does not contain a slot.
     #[must_use]
     pub fn with_children(&self, children: impl Into<Markup>) -> Self {
         let Some(template) = self.template.as_ref() else {
@@ -142,12 +166,17 @@ impl Markup {
         Self::from_parts(parts)
     }
 
+    /// Renders the named fragment.
+    ///
+    /// Panics when the fragment is missing. Use [`try_render_fragment`](Self::try_render_fragment)
+    /// when absence is expected.
     #[must_use]
     pub fn render_fragment(&self, name: &str) -> Self {
         self.try_render_fragment(name)
             .unwrap_or_else(|| panic!("fragment not found: {name}"))
     }
 
+    /// Attempts to render the named fragment.
     #[must_use]
     pub fn try_render_fragment(&self, name: &str) -> Option<Self> {
         let template = self.template.as_deref()?;

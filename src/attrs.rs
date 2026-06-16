@@ -5,7 +5,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::hash::BuildHasher;
 
+/// Provides one or more HTML attribute names.
+///
+/// `Option<T>` skips the attribute name when it is `None`.
 pub trait AttributeName {
+    /// Calls `f` for every attribute name represented by this value.
     fn with_attr_name(&self, f: &mut dyn FnMut(&str));
 }
 
@@ -41,7 +45,12 @@ impl<T: AttributeName> AttributeName for Option<T> {
     }
 }
 
+/// Renders a Rust value as an HTML attribute value.
+///
+/// Strings and `Markup` are escaped for attribute context, booleans render as
+/// boolean attributes, and `Option<T>` skips the attribute when it is `None`.
 pub trait AttributeValue {
+    /// Appends this value as attribute `name` into `out`.
     fn render_attr_into(&self, out: &mut String, name: &str);
 }
 
@@ -114,7 +123,11 @@ impl_display_attr_value!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
 );
 
+/// Renders a Rust value into a `class` attribute segment.
+///
+/// `Option<T>` skips missing classes. Empty rendered segments are omitted.
 pub trait ClassValue {
+    /// Appends this class segment into `out`.
     fn render_class_into(&self, out: &mut String);
 }
 
@@ -184,7 +197,12 @@ impl_display_class_value!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
 );
 
+/// Renders a collection of HTML attributes.
+///
+/// Implemented for maps, arrays/slices of pairs, and arrays/slices of boolean
+/// attribute names.
 pub trait Attributes {
+    /// Appends all represented attributes into `out`.
     fn render_attrs_into(&self, out: &mut String);
 }
 

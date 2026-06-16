@@ -1,3 +1,7 @@
+/// Builds escaped HTML markup from the `mup` DSL.
+///
+/// Static text and ordinary Rust values are escaped by default. Use
+/// [`Markup::raw`](crate::Markup::raw) only for trusted HTML.
 #[macro_export]
 macro_rules! markup {
     ($($tokens:tt)*) => {{
@@ -7,6 +11,10 @@ macro_rules! markup {
     }};
 }
 
+/// Declares lightweight renderable components.
+///
+/// The macro generates the requested struct or enum plus a [`Render`](crate::Render)
+/// implementation whose body is written with [`markup!`](crate::markup).
 #[macro_export]
 macro_rules! component {
     () => {};
@@ -300,8 +308,8 @@ macro_rules! __markup_nodes {
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; $attr $($tail)*);
     }};
 
-    ($builder:ident; $ctx:tt; ( $($value:tt)+ ) $($rest:tt)*) => {{
-        let __markup_markup = $crate::template::render(&({ $($value)+ }), ::std::option::Option::None);
+    ($builder:ident; $ctx:tt; ( $value:expr ) $($rest:tt)*) => {{
+        let __markup_markup = $crate::template::render(&$value, ::std::option::Option::None);
         $builder.push_markup(&__markup_markup);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
@@ -612,6 +620,19 @@ macro_rules! __markup_element {
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
 
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; = $base:ident . $field:ident $($tail:tt)*) => {
+        $crate::__markup_element_attr_field_value!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)*]
+            [$($id)?];
+            [$($attrs)*];
+            [$base . $field]
+            $($tail)*
+        );
+    };
+
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; $next:tt $($tail:tt)*) => {
         $crate::__markup_element!(
             $builder;
@@ -620,6 +641,35 @@ macro_rules! __markup_element {
             [$($class,)*]
             [$($id)?];
             [$($attrs)* $next];
+            $($tail)*
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_element_attr_field_value {
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($value:tt)+] . $field:ident $($tail:tt)*) => {
+        $crate::__markup_element_attr_field_value!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)*]
+            [$($id)?];
+            [$($attrs)*];
+            [$($value)+ . $field]
+            $($tail)*
+        );
+    };
+
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($value:tt)+] $($tail:tt)*) => {
+        $crate::__markup_element!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)*]
+            [$($id)?];
+            [$($attrs)* = $($value)+];
             $($tail)*
         );
     };
@@ -692,6 +742,10 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $($rest)*);
     }};
 
+    ($out:expr; ($name:expr) = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; name ($name); [$base . $field] $($rest)*);
+    };
+
     ($out:expr; ($name:expr) = $value:literal $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
         $crate::__markup_attrs!($out; $($rest)*);
@@ -707,6 +761,10 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $($rest)*);
     }};
 
+    ($out:expr; $name:literal = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; name ($name); [$base . $field] $($rest)*);
+    };
+
     ($out:expr; $name:literal = $value:literal $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
         $crate::__markup_attrs!($out; $($rest)*);
@@ -719,6 +777,28 @@ macro_rules! __markup_attrs {
     ($out:expr; $unexpected:tt $($rest:tt)*) => {
         compile_error!(concat!("unexpected token in attributes: ", stringify!($unexpected)));
     };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_field_value {
+    ($out:expr; name ($name:expr); [$($value:tt)+] . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; name ($name); [$($value)+ . $field] $($rest)*);
+    };
+
+    ($out:expr; name ($name:expr); [$($value:tt)+] $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$($value)+);
+        $crate::__markup_attrs!($out; $($rest)*);
+    }};
+
+    ($out:expr; segments [$($segment:ident),+]; [$($value:tt)+] . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; segments [$($segment),+]; [$($value)+ . $field] $($rest)*);
+    };
+
+    ($out:expr; segments [$($segment:ident),+]; [$($value:tt)+] $($rest:tt)*) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$($value)+);
+        $crate::__markup_attrs!($out; $($rest)*);
+    }};
 }
 
 #[doc(hidden)]
@@ -737,6 +817,10 @@ macro_rules! __markup_attr_name {
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$function $(:: $path_segment)* ($($args)*));
         $crate::__markup_attrs!($out; $($rest)*);
     }};
+
+    ($out:expr; [$($segment:ident),+] = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; segments [$($segment),+]; [$base . $field] $($rest)*);
+    };
 
     ($out:expr; [$($segment:ident),+] = $value:literal $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$value);

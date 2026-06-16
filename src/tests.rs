@@ -97,6 +97,16 @@ fn renders_dynamic_semicolon_terminated_elements() {
 }
 
 #[test]
+#[should_panic(expected = "invalid HTML tag name")]
+fn rejects_invalid_dynamic_tag_names() {
+    let tag = "bad tag";
+
+    let _ = markup! {
+        (tag) {}
+    };
+}
+
+#[test]
 #[should_panic(expected = "not an HTML void element")]
 fn rejects_semicolon_terminated_non_void_elements() {
     let _ = markup! {
@@ -139,16 +149,24 @@ fn escapes_dynamic_class_and_id_selectors() {
 #[test]
 fn escapes_text_and_attribute_values() {
     struct View {
-        title: String,
+        title: Title,
+    }
+    struct Title {
+        inner: String,
     }
 
     let view = View {
-        title: "<Title & \"quote\">".to_owned(),
+        title: Title {
+            inner: "<Title & \"quote\">".to_owned(),
+        },
     };
 
     let actual = markup! {
-        div title=(view.title) {
-            @view.title
+        div title=view.title.inner {
+            ({
+                let inner = &view.title.inner;
+                inner.to_string()
+            })
         }
     };
 
@@ -188,17 +206,100 @@ fn supports_function_call_attribute_values_without_outer_parentheses() {
             foo=foo()
             data-bar=bar("baz")
             data-path=String::from("path")
-            "data-literal-call"=bar("literal")
-            "data-literal-expr"=(String::from("expr"))
-            "data-literal-value"="value"
             (attr)=foo()
         {}
     };
 
     assert_eq!(
         actual.as_str(),
-        r#"<div foo="foo" data-bar="bar-baz" data-path="path" data-literal-call="bar-literal" data-literal-expr="expr" data-literal-value="value" data-dynamic="foo"></div>"#
+        r#"<div foo="foo" data-bar="bar-baz" data-path="path" data-dynamic="foo"></div>"#
     );
+}
+
+#[test]
+fn supports_literal_attribute_names() {
+    let expr = String::from("expr");
+
+    let actual = markup! {
+        div
+            "data-call"=String::from("call")
+            "data-expr"=(expr)
+            "data-value"="value"
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div data-call="call" data-expr="expr" data-value="value"></div>"#
+    );
+}
+
+#[test]
+fn supports_field_chain_attribute_values_without_outer_parentheses() {
+    struct View {
+        title: Title,
+    }
+    struct Title {
+        inner: String,
+    }
+
+    let view = View {
+        title: Title {
+            inner: "field".to_owned(),
+        },
+    };
+    let attr = "data-dynamic-field";
+
+    let actual = markup! {
+        div.featured
+            title=view.title.inner
+            "data-literal-field"=view.title.inner
+            (attr)=view.title.inner
+            data-next="next"
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div class="featured" title="field" data-literal-field="field" data-dynamic-field="field" data-next="next"></div>"#
+    );
+}
+
+#[test]
+fn supports_block_expression_attribute_values() {
+    let attr = "data-dynamic-block";
+
+    let actual = markup! {
+        div
+            title=({
+                let value = "block";
+                format!("{value}-title")
+            })
+            "data-literal-block"=({
+                let value = "literal";
+                format!("{value}-block")
+            })
+            (attr)=({
+                let value = "dynamic";
+                format!("{value}-block")
+            })
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div title="block-title" data-literal-block="literal-block" data-dynamic-block="dynamic-block"></div>"#
+    );
+}
+
+#[test]
+#[should_panic(expected = "invalid HTML attribute name")]
+fn rejects_invalid_dynamic_attribute_names() {
+    let attr = "bad attr";
+
+    let _ = markup! {
+        div (attr)=("value") {}
+    };
 }
 
 #[test]
@@ -380,6 +481,20 @@ fn renders_named_fragment() {
         Some("<div>content</div>")
     );
     assert!(page.try_render_fragment("missing").is_none());
+}
+
+#[test]
+#[should_panic(expected = "fragment not found: missing")]
+fn panics_when_rendering_missing_fragment() {
+    let page = markup! {
+        div {
+            @Markup::fragment("name") {
+                "content"
+            }
+        }
+    };
+
+    let _ = page.render_fragment("missing");
 }
 
 #[test]
@@ -748,21 +863,21 @@ fn supports_markup_function_declarations() {
 }
 
 #[test]
-fn supports_parenthesized_statement_blocks() {
+fn supports_parenthesized_block_expressions() {
     let actual = markup! {
         p {
-            (
+            ({
                 let a = 2;
                 let b = 3;
                 a + b
-            )
+            })
         }
 
         p {
-            (
+            ({
                 let name = "John".to_string();
                 name + " Snow"
-            )
+            })
         }
     };
 
