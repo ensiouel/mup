@@ -822,10 +822,11 @@ macro_rules! __markup_component_generic_args_finish {
             fn render(&self, __markup_children: ::std::option::Option<$crate::Markup>) -> $crate::Markup {
                 let _ = &__markup_children;
                 $(
+                    #[allow(unused_variables)]
                     let $field = &self.$field;
                 )*
 
-                $crate::__markup_component_markup!(__markup_children; $($body)*)
+                $crate::__markup_component_markup!(@self self; __markup_children; $($body)*)
             }
         }
     };
@@ -911,10 +912,11 @@ macro_rules! __markup_component_item {
             fn render(&self, __markup_children: ::std::option::Option<$crate::Markup>) -> $crate::Markup {
                 let _ = &__markup_children;
                 $(
+                    #[allow(unused_variables)]
                     let $field = &self.$field;
                 )*
 
-                $crate::__markup_component_markup!(__markup_children; $($body)*)
+                $crate::__markup_component_markup!(@self self; __markup_children; $($body)*)
             }
         }
     };
@@ -937,7 +939,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
             $($rest)*
@@ -952,7 +954,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
         }
@@ -966,7 +968,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant ( $($pattern)* ) => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
             $($rest)*
@@ -981,7 +983,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant ( $($pattern)* ) => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
         }
@@ -995,7 +997,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant { $($pattern)* } => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
             $($rest)*
@@ -1010,7 +1012,7 @@ macro_rules! __markup_component_enum_render {
             [
                 $($arms)*
                 $name :: $variant { $($pattern)* } => {
-                    $crate::__markup_component_markup!($children; $($body)*)
+                    $crate::__markup_component_markup!(@self $value; $children; $($body)*)
                 },
             ]
         }
@@ -1020,6 +1022,10 @@ macro_rules! __markup_component_enum_render {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_component_markup {
+    (@self $self_value:tt; $children:ident; $($tokens:tt)*) => {
+        $crate::__markup_children_markup!([$children; $self_value]; $($tokens)*)
+    };
+
     ($children:ident; $($tokens:tt)*) => {
         $crate::__markup_children_markup!([$children]; $($tokens)*)
     };
@@ -1039,6 +1045,21 @@ macro_rules! __markup_children_markup {
 #[macro_export]
 macro_rules! __markup_nodes {
     ($builder:ident; $ctx:tt;) => {};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ self $($tail:tt)*) => {
+        $crate::__markup_rust_value!($builder; [$children; $self_value]; [$self_value] $($tail)*);
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ children $($rest:tt)*) => {{
+        if let ::std::option::Option::Some(__markup_children) = $children.as_ref() {
+            $builder.push_markup(__markup_children);
+        }
+        $crate::__markup_nodes!($builder; [$children; $self_value]; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ Markup :: slot ( ) $($rest:tt)*) => {{
+        $crate::__markup_nodes!($builder; [$children; $self_value]; @ children $($rest)*);
+    }};
 
     ($builder:ident; [$children:ident]; @ children $($rest:tt)*) => {{
         if let ::std::option::Option::Some(__markup_children) = $children.as_ref() {
@@ -1407,6 +1428,10 @@ macro_rules! __markup_match {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_rust_value {
+    ($builder:ident; $ctx:tt; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_rust_value!($builder; $ctx; [$($value)+ . $method ( $($args)* )] $($tail)*);
+    };
+
     ($builder:ident; $ctx:tt; [$($value:tt)+] . $field:ident $($tail:tt)*) => {
         $crate::__markup_rust_value!($builder; $ctx; [$($value)+ . $field] $($tail)*);
     };

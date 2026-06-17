@@ -64,12 +64,6 @@ In short, `mup` tries to be as capable as the established Rust HTML DSLs while
 optimizing for dynamic markup ergonomics, component children, and partial
 responses.
 
-Install the required tools with:
-
-```sh
-cargo install git-cliff
-```
-
 ## Feature Snapshot
 
 Dynamic tags, dynamic attribute names, and attribute spreads:

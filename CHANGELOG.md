@@ -6,6 +6,16 @@ The project follows Semantic Versioning while the public DSL is still young:
 patch releases should not intentionally break existing templates, and minor
 releases may add syntax or tighten diagnostics.
 
+## 0.5.0
+
+
+### Added
+
+
+- Support method calls in component markup
+
+
+
 ## 0.4.0
 
 

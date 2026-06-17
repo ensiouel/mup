@@ -762,6 +762,88 @@ fn component_macro_supports_lifetimes_and_generics() {
 }
 
 #[test]
+fn component_macro_supports_struct_self_method_calls() {
+    component! {
+        struct Profile {
+            first: String,
+            last: String,
+        } {
+            article {
+                h1 { @self.display_name(" / ") }
+                p { @self.initials().to_uppercase() }
+            }
+        }
+
+        impl Profile {
+            fn new(first: impl Into<String>, last: impl Into<String>) -> Self {
+                Self {
+                    first: first.into(),
+                    last: last.into(),
+                }
+            }
+
+            fn display_name(&self, separator: &str) -> String {
+                format!("{}{}{}", self.last, separator, self.first)
+            }
+
+            fn initials(&self) -> String {
+                format!(
+                    "{}{}",
+                    self.first.chars().next().unwrap_or_default(),
+                    self.last.chars().next().unwrap_or_default()
+                )
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Profile::new("Ada", "Lovelace")
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        "<article><h1>Lovelace / Ada</h1><p>AL</p></article>"
+    );
+}
+
+#[test]
+fn component_macro_supports_struct_associated_function_calls() {
+    component! {
+        struct Meter {
+            value: i32,
+        } {
+            div {
+                span { @Self::format_value(*value) }
+                small { @Meter::unit_label() }
+            }
+        }
+
+        impl Meter {
+            fn new(value: i32) -> Self {
+                Self { value }
+            }
+
+            fn format_value(value: i32) -> String {
+                format!("{value:03}")
+            }
+
+            fn unit_label() -> &'static str {
+                "rpm"
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Meter::new(7)
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        "<div><span>007</span><small>rpm</small></div>"
+    );
+}
+
+#[test]
 fn component_macro_supports_generic_enums() {
     component! {
         enum Marker<'a, T: Render> {
@@ -791,6 +873,32 @@ fn component_macro_supports_generic_enums() {
         actual.as_str(),
         r#"<span class="borrowed">borrowed</span><span class="owned">owned</span>"#
     );
+}
+
+#[test]
+fn component_macro_supports_enum_self_method_call_nodes() {
+    component! {
+        enum Status {
+            Ready,
+        } {
+            Ready => {
+                span { @self.label() }
+            }
+        }
+
+        impl Status {
+            fn label(&self) -> &'static str {
+                "ready"
+            }
+        }
+    }
+
+    let status = Status::Ready;
+    let actual = markup! {
+        @status
+    };
+
+    assert_eq!(actual.as_str(), "<span>ready</span>");
 }
 
 #[test]
