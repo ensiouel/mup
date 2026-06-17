@@ -9,14 +9,14 @@ struct Todo {
 fn todo_list(todos: &[Todo]) -> Markup {
     markup! {
         @Markup::fragment("todo-list") {
-            ul #("todo-list") {
+            ul #todo-list {
                 @for todo in todos {
                     @let status = if todo.done { "done" } else { "open" };
                     li data-id=todo.id data-status=status {
                         span { @todo.title }
                         button
                             type="button"
-                            hx-post=(format!("/todos/{}/toggle", todo.id))
+                            hx-post=format!("/todos/{}/toggle", todo.id)
                             hx-target="#todo-list"
                             hx-swap="outerHTML"
                         {

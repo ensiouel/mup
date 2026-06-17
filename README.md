@@ -381,8 +381,8 @@ let html = markup! {
     button
         type="button"
         disabled
-        checked=(true)
-        hidden=(false) // False boolean attrs are skipped.
+        checked=true
+        hidden=false // False boolean attrs are skipped.
     {
         "attributes"
     }

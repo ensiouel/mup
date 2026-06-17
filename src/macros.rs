@@ -1662,6 +1662,11 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
     }};
 
+    ($out:expr; $ctx:tt; ($name:expr) = $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$macro!($($args)*));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
     ($out:expr; $ctx:tt; ($name:expr) = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$function $(:: $segment)* ($($args)*));
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
@@ -1693,6 +1698,11 @@ macro_rules! __markup_attrs {
     ($out:expr; $ctx:tt; $name:literal = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
         $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; $name:literal = $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$macro!($($args)*));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
     ($out:expr; $ctx:tt; $name:literal = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
@@ -1792,6 +1802,11 @@ macro_rules! __markup_attr_name {
         $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
     }};
 
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$macro!($($args)*));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
     ($out:expr; $ctx:tt; [$($segment:ident),+] = $function:ident $(:: $path_segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$function $(:: $path_segment)* ($($args)*));
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
@@ -1875,6 +1890,12 @@ macro_rules! __markup_attr_name_with_prefix {
     ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
         $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$value);
         $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    // = macro!(args)
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$macro!($($args)*));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
     // = function::path(args)
