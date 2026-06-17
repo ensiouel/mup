@@ -1500,7 +1500,7 @@ macro_rules! __markup_element {
         $(
             $crate::template::push_attr(&mut $builder.current, "id", &$id);
         )?
-        $crate::__markup_attrs!($builder.current; $($attrs)*);
+        $crate::__markup_attrs!($builder.current; $ctx; $($attrs)*);
         $crate::template::finish_void_tag(&mut $builder.current, $tag);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
@@ -1511,7 +1511,7 @@ macro_rules! __markup_element {
         $(
             $crate::template::push_attr(&mut $builder.current, "id", &$id);
         )?
-        $crate::__markup_attrs!($builder.current; $($attrs)*);
+        $crate::__markup_attrs!($builder.current; $ctx; $($attrs)*);
         $crate::template::finish_start_tag(&mut $builder.current);
         $crate::__markup_nodes!($builder; $ctx; $($body)*);
         $crate::template::push_end_tag(&mut $builder.current, $tag);
@@ -1526,7 +1526,8 @@ macro_rules! __markup_element {
             [$($class,)*]
             [$($id)?];
             [$($attrs)*];
-            [$base . $field]
+            [$base]
+            . $field
             $($tail)*
         );
     };
@@ -1547,6 +1548,19 @@ macro_rules! __markup_element {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_element_attr_field_value {
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_element_attr_field_value!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)*]
+            [$($id)?];
+            [$($attrs)*];
+            [$($value)+ . $method ( $($args)* )]
+            $($tail)*
+        );
+    };
+
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($value:tt)+] . $field:ident $($tail:tt)*) => {
         $crate::__markup_element_attr_field_value!(
             $builder;
@@ -1590,89 +1604,117 @@ macro_rules! __markup_classes_attr {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_attrs {
-    ($out:expr;) => {};
+    ($out:expr; $ctx:tt;) => {};
 
-    ($out:expr; .. $attrs:ident $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; .. $attrs:ident $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; .. [$($attrs:tt)*] $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; .. [$($attrs:tt)*] $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &[$($attrs)*]);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; .. ($attrs:expr) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; .. ($attrs:expr) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; (.. $attrs:ident) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; (.. $attrs:ident) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; (.. [$($attrs:tt)*]) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; (.. [$($attrs:tt)*]) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &[$($attrs)*]);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; (.. $attrs:expr) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; (.. $attrs:expr) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; ($attrs:ident ...) $($rest:tt)*) => {
+    ($out:expr; $ctx:tt; ($attrs:ident ...) $($rest:tt)*) => {
         compile_error!("attribute spread syntax changed: use `..attrs` instead of `(attrs...)`");
     };
 
-    ($out:expr; ([$($attrs:tt)*] ...) $($rest:tt)*) => {
+    ($out:expr; $ctx:tt; ([$($attrs:tt)*] ...) $($rest:tt)*) => {
         compile_error!("attribute spread syntax changed: use `..[attrs]` instead of `([attrs]...)`");
     };
 
-    ($out:expr; ($name:expr) = ($value:expr) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; ($name:expr) = ($value:expr) $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; ($name:expr) = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; ($name:expr) = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$value);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; ($name:expr) = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$function $(:: $segment)* ($($args)*));
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; ($name:expr) = $base:ident . $field:ident $($rest:tt)*) => {
-        $crate::__markup_attr_field_value!($out; name ($name); [$base . $field] $($rest)*);
+    ($out:expr; [$children:ident; $self_value:tt]; ($name:expr) = self . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; [$children; $self_value]; name ($name); [$self_value] . $field $($rest)*);
     };
 
-    ($out:expr; ($name:expr) = $value:literal $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; ($name:expr) = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; name ($name); [$base] . $field $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; ($name:expr) = $value:ident $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; $name:literal = ($value:expr) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; ($name:expr) = $value:literal $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; $name:literal = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; $name:literal = ($value:expr) $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; $name:literal = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$value);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; $name:literal = $function:ident $(:: $segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$function $(:: $segment)* ($($args)*));
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; $name:literal = $base:ident . $field:ident $($rest:tt)*) => {
-        $crate::__markup_attr_field_value!($out; name ($name); [$base . $field] $($rest)*);
+    ($out:expr; [$children:ident; $self_value:tt]; $name:literal = self . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; [$children; $self_value]; name ($name); [$self_value] . $field $($rest)*);
     };
 
-    ($out:expr; $name:literal = $value:literal $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; $name:literal = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; name ($name); [$base] . $field $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; $name:literal = $value:ident $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; $name:ident $($tail:tt)*) => {
-        $crate::__markup_attr_name!($out; [$name] $($tail)*);
+    ($out:expr; $ctx:tt; $name:literal = $value:literal $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; $name:ident $($tail:tt)*) => {
+        $crate::__markup_attr_name!($out; $ctx; [$name] $($tail)*);
     };
 
-    ($out:expr; $unexpected:tt $($rest:tt)*) => {
+    ($out:expr; $ctx:tt; $unexpected:tt $($rest:tt)*) => {
         compile_error!(concat!("unexpected token in attributes: ", stringify!($unexpected)));
     };
 }
@@ -1680,53 +1722,85 @@ macro_rules! __markup_attrs {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_attr_field_value {
-    ($out:expr; name ($name:expr); [$($value:tt)+] . $field:ident $($rest:tt)*) => {
-        $crate::__markup_attr_field_value!($out; name ($name); [$($value)+ . $field] $($rest)*);
-    };
-
-    ($out:expr; name ($name:expr); [$($value:tt)+] $($rest:tt)*) => {{
-        $crate::template::push_attr(&mut $out, &$name, &$($value)+);
-        $crate::__markup_attrs!($out; $($rest)*);
+    ($out:expr; $ctx:tt; name ($name:expr); [$($value:tt)+] . $field:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$($value)+ . $field);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
     }};
 
-    ($out:expr; segments [$($segment:ident),+]; [$($value:tt)+] . $field:ident $($rest:tt)*) => {
-        $crate::__markup_attr_field_value!($out; segments [$($segment),+]; [$($value)+ . $field] $($rest)*);
+    ($out:expr; $ctx:tt; name ($name:expr); [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; name ($name); [$($value)+ . $method ( $($args)* )] $($rest)*);
     };
 
-    ($out:expr; segments [$($segment:ident),+]; [$($value:tt)+] $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; name ($name:expr); [$($value:tt)+] . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; name ($name); [$($value)+ . $field] $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; name ($name:expr); [$($value:tt)+] $($rest:tt)*) => {{
+        $crate::template::push_attr(&mut $out, &$name, &$($value)+);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; segments [$($segment:ident),+]; [$($value:tt)+] . $field:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$($value)+ . $field);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; segments [$($segment:ident),+]; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; segments [$($segment),+]; [$($value)+ . $method ( $($args)* )] $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; segments [$($segment:ident),+]; [$($value:tt)+] . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; segments [$($segment),+]; [$($value)+ . $field] $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; segments [$($segment:ident),+]; [$($value:tt)+] $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$($value)+);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_attr_name {
-    ($out:expr; [$($segment:ident),+] - $next:ident $($tail:tt)*) => {
-        $crate::__markup_attr_name!($out; [$($segment,)+ $next] $($tail)*);
+    ($out:expr; $ctx:tt; [$($segment:ident),+] - $next:ident $($tail:tt)*) => {
+        $crate::__markup_attr_name!($out; $ctx; [$($segment,)+ $next] $($tail)*);
     };
 
-    ($out:expr; [$($segment:ident),+] = ($value:expr) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = ($value:expr) $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; [$($segment:ident),+] = $function:ident $(:: $path_segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $function:ident $(:: $path_segment:ident)* ( $($args:tt)* ) $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$function $(:: $path_segment)* ($($args)*));
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; [$($segment:ident),+] = $base:ident . $field:ident $($rest:tt)*) => {
-        $crate::__markup_attr_field_value!($out; segments [$($segment),+]; [$base . $field] $($rest)*);
+    ($out:expr; [$children:ident; $self_value:tt]; [$($segment:ident),+] = self . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; [$children; $self_value]; segments [$($segment),+]; [$self_value] . $field $($rest)*);
     };
 
-    ($out:expr; [$($segment:ident),+] = $value:literal $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value!($out; $ctx; segments [$($segment),+]; [$base] . $field $($rest)*);
+    };
+
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $value:ident $($rest:tt)*) => {{
         $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$value);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
-    ($out:expr; [$($segment:ident),+] $($rest:tt)*) => {{
+    ($out:expr; $ctx:tt; [$($segment:ident),+] = $value:literal $($rest:tt)*) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    ($out:expr; $ctx:tt; [$($segment:ident),+] $($rest:tt)*) => {{
         $crate::template::push_bool_attr_segments(&mut $out, &[$(stringify!($segment)),+]);
-        $crate::__markup_attrs!($out; $($rest)*);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 }

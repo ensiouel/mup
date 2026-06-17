@@ -428,7 +428,7 @@ let html = markup! {
 ```
 
 Attribute values use the same expression rule. Use `=({ ... })` for local
-statements, or short forms for function calls and field chains.
+statements, or short forms for function calls, field chains, and method chains.
 
 ```rust
 use mup::markup;
@@ -780,7 +780,7 @@ let html = markup! {
 
 Inside component bodies, `@self.method(...)` calls methods on the current
 component instance. Associated functions that do not take `self` can be called
-with `@Self::function(...)`.
+with `@Self::function(...)`. The same forms work in attribute values.
 
 **Rust**
 
@@ -792,7 +792,7 @@ component! {
         first: String,
         last: String,
     } {
-        article {
+        article data-profile=self.initials().to_lowercase() data-kind=Self::kind() {
             h1 { @self.display_name(" ") }
             p { @self.initials().to_uppercase() }
             small { @Self::kind() }
@@ -833,7 +833,7 @@ let html = markup! {
 **HTML result**
 
 ```html
-<article>
+<article data-profile="al" data-kind="profile">
     <h1>Ada Lovelace</h1>
     <p>AL</p>
     <small>profile</small>

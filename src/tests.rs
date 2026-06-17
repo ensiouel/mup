@@ -266,6 +266,40 @@ fn supports_field_chain_attribute_values_without_outer_parentheses() {
 }
 
 #[test]
+fn supports_method_chain_attribute_values_without_outer_parentheses() {
+    struct View {
+        title: String,
+    }
+
+    impl View {
+        fn slug(&self, suffix: &str) -> String {
+            format!("{}-{suffix}", self.title.to_lowercase())
+        }
+    }
+
+    let view = View {
+        title: "Profile".to_owned(),
+    };
+    let attr = "data-dynamic-slug";
+    let label = "method attr";
+
+    let actual = markup! {
+        div
+            title=label
+            data-title=view.title
+            data-slug=view.slug("card").to_uppercase()
+            "data-literal-slug"=view.slug("literal")
+            (attr)=view.slug("dynamic")
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div title="method attr" data-title="Profile" data-slug="PROFILE-CARD" data-literal-slug="profile-literal" data-dynamic-slug="profile-dynamic"></div>"#
+    );
+}
+
+#[test]
 fn supports_block_expression_attribute_values() {
     let attr = "data-dynamic-block";
 
@@ -803,6 +837,62 @@ fn component_macro_supports_struct_self_method_calls() {
     assert_eq!(
         actual.as_str(),
         "<article><h1>Lovelace / Ada</h1><p>AL</p></article>"
+    );
+}
+
+#[test]
+fn component_macro_supports_struct_self_attribute_values() {
+    component! {
+        struct Link {
+            label: String,
+            route: String,
+        } {
+            @let tracking_attr = "data-track";
+            a
+                href=self.href()
+                title=self.title("Open").to_uppercase()
+                data-route=self.route
+                data-kind=Self::kind()
+                "data-label"=label
+                (tracking_attr)=self.tracking_id()
+            {
+                @label
+            }
+        }
+
+        impl Link {
+            fn new(label: impl Into<String>, route: impl Into<String>) -> Self {
+                Self {
+                    label: label.into(),
+                    route: route.into(),
+                }
+            }
+
+            fn href(&self) -> String {
+                format!("/{}", self.route.trim_start_matches('/'))
+            }
+
+            fn title(&self, prefix: &str) -> String {
+                format!("{prefix} {}", self.label)
+            }
+
+            fn tracking_id(&self) -> String {
+                format!("link-{}", self.route.trim_matches('/'))
+            }
+
+            fn kind() -> &'static str {
+                "nav"
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Link::new("Docs", "/docs")
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<a href="/docs" title="OPEN DOCS" data-route="/docs" data-kind="nav" data-label="Docs" data-track="link-docs">Docs</a>"#
     );
 }
 
