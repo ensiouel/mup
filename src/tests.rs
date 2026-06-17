@@ -1282,3 +1282,55 @@ fn component_macro_supports_control_flow_nodes() {
         r#"<span class="primary">primary</span><span>secondary</span>"#
     );
 }
+
+#[test]
+fn supports_dashed_class_and_id_shorthand() {
+    let actual = markup! {
+        div.foo-bar #main-nav {
+            span.badge-foo_bar { "content" }
+        }
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div class="foo-bar" id="main-nav"><span class="badge-foo_bar">content</span></div>"#
+    );
+}
+
+#[test]
+fn supports_colon_prefixed_attribute_names() {
+    let is_disabled = true;
+
+    let actual = markup! {
+        input :type="password" :disabled=is_disabled {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<input :type="password" :disabled></input>"#
+    );
+}
+
+#[test]
+fn supports_at_prefixed_attribute_names() {
+    let actual = markup! {
+        button @click="handler" @focus="true" {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<button @click="handler" @focus="true"></button>"#
+    );
+}
+
+#[test]
+fn supports_dashed_colon_and_at_prefixed_attribute_names() {
+    let actual = markup! {
+        div :data-value="foo" @event-name="bar" {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div :data-value="foo" @event-name="bar"></div>"#
+    );
+}

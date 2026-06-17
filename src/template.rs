@@ -98,23 +98,17 @@ pub fn push_attr_segments<V>(out: &mut String, segments: &[&str], value: &V)
 where
     V: AttributeValue + ?Sized,
 {
-    if let [name] = segments {
-        value.render_attr_into(out, name);
-        return;
+    match segments {
+        [name] => value.render_attr_into(out, name),
+        _ => value.render_attr_into(out, &join_segments(segments)),
     }
-
-    let name = join_segments(segments);
-    value.render_attr_into(out, &name);
 }
 
 pub fn push_bool_attr_segments(out: &mut String, segments: &[&str]) {
-    if let [name] = segments {
-        push_boolean_attr(out, name);
-        return;
+    match segments {
+        [name] => push_boolean_attr(out, name),
+        _ => push_boolean_attr(out, &join_segments(segments)),
     }
-
-    let name = join_segments(segments);
-    push_boolean_attr(out, &name);
 }
 
 pub fn push_class_value<V>(classes: &mut String, value: &V)
@@ -141,17 +135,32 @@ pub fn push_class_attr(out: &mut String, classes: &str) {
     }
 }
 
-fn join_segments(segments: &[&str]) -> String {
-    let size = segments.iter().map(|segment| segment.len()).sum::<usize>()
+pub fn push_prefixed_attr_segments<V>(out: &mut String, prefix: &str, segments: &[&str], value: &V)
+where
+    V: AttributeValue + ?Sized,
+{
+    value.render_attr_into(out, &build_prefixed_name(prefix, segments));
+}
+
+pub fn push_bool_prefixed_attr_segments(out: &mut String, prefix: &str, segments: &[&str]) {
+    push_boolean_attr(out, &build_prefixed_name(prefix, segments));
+}
+
+fn build_prefixed_name(prefix: &str, segments: &[&str]) -> String {
+    let size = prefix.len()
+        + segments.iter().map(|s| s.len()).sum::<usize>()
         + segments.len().saturating_sub(1);
     let mut name = String::with_capacity(size);
-
-    for (index, segment) in segments.iter().enumerate() {
-        if index > 0 {
+    name.push_str(prefix);
+    for (i, seg) in segments.iter().enumerate() {
+        if i > 0 {
             name.push('-');
         }
-        name.push_str(segment);
+        name.push_str(seg);
     }
-
     name
+}
+
+fn join_segments(segments: &[&str]) -> String {
+    build_prefixed_name("", segments)
 }

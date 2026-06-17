@@ -1458,6 +1458,10 @@ macro_rules! __markup_element {
         );
     };
 
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; . $first:ident - $($tail:tt)*) => {
+        $crate::__markup_class_name!($builder; $ctx; $tag; [$($class,)*] [$($id)?]; [$($attrs)*]; [$first] $($tail)*);
+    };
+
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; . $class_name:ident $($tail:tt)*) => {
         $crate::__markup_element!(
             $builder;
@@ -1480,6 +1484,10 @@ macro_rules! __markup_element {
             [$($attrs)*];
             $($tail)*
         );
+    };
+
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; # $first:ident - $($tail:tt)*) => {
+        $crate::__markup_id_name!($builder; $ctx; $tag; [$($class,)*] [$($id)?]; [$($attrs)*]; [$first] $($tail)*);
     };
 
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; # $id_name:ident $($tail:tt)*) => {
@@ -1710,6 +1718,14 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
+    ($out:expr; $ctx:tt; : $name:tt $($tail:tt)*) => {
+        $crate::__markup_attr_name_with_prefix!($out; $ctx; ":"; [$name] $($tail)*);
+    };
+
+    ($out:expr; $ctx:tt; @ $name:tt $($tail:tt)*) => {
+        $crate::__markup_attr_name_with_prefix!($out; $ctx; "@"; [$name] $($tail)*);
+    };
+
     ($out:expr; $ctx:tt; $name:ident $($tail:tt)*) => {
         $crate::__markup_attr_name!($out; $ctx; [$name] $($tail)*);
     };
@@ -1801,6 +1817,123 @@ macro_rules! __markup_attr_name {
 
     ($out:expr; $ctx:tt; [$($segment:ident),+] $($rest:tt)*) => {{
         $crate::template::push_bool_attr_segments(&mut $out, &[$(stringify!($segment)),+]);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_class_name {
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($seg:ident),+] $next:ident - $($tail:tt)*) => {
+        $crate::__markup_class_name!($builder; $ctx; $tag; [$($class,)*] [$($id)?]; [$($attrs)*]; [$($seg),+, $next] $($tail)*);
+    };
+
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($seg:ident),+] $last:ident $($tail:tt)*) => {
+        $crate::__markup_element!(
+            $builder; $ctx; $tag;
+            [$($class,)* $crate::__markup_join_name!($($seg),+, $last),]
+            [$($id)?];
+            [$($attrs)*];
+            $($tail)*
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_id_name {
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($seg:ident),+] $next:ident - $($tail:tt)*) => {
+        $crate::__markup_id_name!($builder; $ctx; $tag; [$($class,)*] [$($id)?]; [$($attrs)*]; [$($seg),+, $next] $($tail)*);
+    };
+
+    ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($seg:ident),+] $last:ident $($tail:tt)*) => {
+        $crate::__markup_element!(
+            $builder; $ctx; $tag;
+            [$($class,)*]
+            [$crate::__markup_join_name!($($seg),+, $last)];
+            [$($attrs)*];
+            $($tail)*
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_name_with_prefix {
+    // Accumulate dash-separated segments
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] - $next:tt $($tail:tt)*) => {
+        $crate::__markup_attr_name_with_prefix!($out; $ctx; $prefix; [$($seg),+, $next] $($tail)*);
+    };
+
+    // = (expr)
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = ($value:expr) $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    // = ident(next_name) = rest  (value is the ident, next attr uses dynamic name)
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $value:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    // = function::path(args)
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $function:ident $(:: $path_seg:ident)* ($($args:tt)*) $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$function $(:: $path_seg)* ($($args)*));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    // = self.field (component context)
+    ($out:expr; [$children:ident; $self_value:tt]; $prefix:literal; [$($seg:tt),+] = self . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value_prefixed!($out; [$children; $self_value]; $prefix; [$($seg),+]; [$self_value] . $field $($rest)*);
+    };
+
+    // = base.field
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $base:ident . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value_prefixed!($out; $ctx; $prefix; [$($seg),+]; [$base] . $field $($rest)*);
+    };
+
+    // = ident
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $value:ident $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    // = literal
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] = $value:literal $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$value);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+
+    // No = : boolean attr
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+] $($rest:tt)*) => {{
+        $crate::template::push_bool_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+]);
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_field_value_prefixed {
+    // Field access followed by next attr using dynamic name: .field(next) = rest
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+]; [$($value:tt)+] . $field:ident ( $($next_name:tt)* ) = $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$($value)+ . $field);
+        $crate::__markup_attrs!($out; $ctx; ( $($next_name)* ) = $($rest)*);
+    }};
+
+    // Accumulate method call
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+]; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_attr_field_value_prefixed!($out; $ctx; $prefix; [$($seg),+]; [$($value)+ . $method ( $($args)* )] $($rest)*);
+    };
+
+    // Accumulate field access
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+]; [$($value:tt)+] . $field:ident $($rest:tt)*) => {
+        $crate::__markup_attr_field_value_prefixed!($out; $ctx; $prefix; [$($seg),+]; [$($value)+ . $field] $($rest)*);
+    };
+
+    // Done — emit the attr
+    ($out:expr; $ctx:tt; $prefix:literal; [$($seg:tt),+]; [$($value:tt)+] $($rest:tt)*) => {{
+        $crate::template::push_prefixed_attr_segments(&mut $out, $prefix, &[$(stringify!($seg)),+], &$($value)+);
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 }

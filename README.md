@@ -114,10 +114,12 @@ let body = page.render_fragment("body");
 ## Syntax Reference
 
 - Tags: `div { ... }`, `my-block { ... }`, and dynamic tags as `(tag) { ... }`.
-- Classes and ids: `div.foo #main { ... }`, dynamic values as `.(class)` and
-  `#(id)`.
+- Classes and ids: `div.foo-bar #main-nav { ... }`, simple or dashed names;
+  dynamic values as `.(class)` and `#(id)`.
 - Static attributes: `type="button"`, `disabled`, and hyphenated names like
   `data-state="open"`.
+- Prefixed attribute names: `:type="text"` and `@click="handler"` for
+  Vue/Alpine.js-style attribute names.
 - Dynamic attribute names: `(attr)=("value")`.
 - Dynamic attribute values: `title=(expr)` for arbitrary Rust expressions.
 - Attribute short forms: `title=view.title`, `title=label()`, and
@@ -244,6 +246,8 @@ let id = "hero";
 let html = markup! {
     div.root.(class).(no_class) #(id) {
         span.item { "selectors" }
+        span.badge-label { "dashed class" }
+        nav #main-nav { "dashed id" }
     }
 };
 ```
@@ -254,8 +258,14 @@ let html = markup! {
 
 <div class="root dynamic-class" id="hero">
     <span class="item">selectors</span>
+    <span class="badge-label">dashed class</span>
+    <nav id="main-nav">dashed id</nav>
 </div>
 ```
+
+Class and id shorthand names can contain dashes and underscores:
+`.badge-foo_bar` produces `class="badge-foo_bar"`.
+For dynamic values, use `.( expr )` and `#( expr )`.
 
 ## Div Shorthand
 
@@ -464,6 +474,49 @@ let html = markup! {
 <div data-dynamic="dynamic attribute name">
     attribute name from expression
 </div>
+```
+
+## Prefixed Attribute Names
+
+Attribute names starting with `:` or `@` are written directly without quotes.
+This is the conventional syntax used by Vue.js, Alpine.js, and similar
+frameworks.
+
+**Rust**
+
+```rust
+use mup::markup;
+
+let is_required = true;
+
+let html = markup! {
+    form {
+        input :type="email" :required=(is_required) {}
+        button @click="submitForm" { "Submit" }
+    }
+};
+```
+
+**HTML result**
+
+```html
+
+<form>
+    <input :type="email" :required>
+    <button @click="submitForm">Submit</button>
+</form>
+```
+
+Dashed names work the same way: `:data-value="x"` and `@event-name="handler"`
+are both valid.
+
+For names that contain other special characters such as an Alpine.js modifier
+(`:click.prevent`), use a string literal:
+
+```rust,ignore
+let html = markup! {
+    button "@click.prevent"="handler" { "click" }
+};
 ```
 
 ## Attribute Spreads

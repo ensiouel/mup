@@ -44,8 +44,6 @@ pub(crate) fn assert_valid_tag_name(name: &str) {
 }
 
 pub(crate) fn assert_valid_void_tag_name(name: &str) {
-    assert_valid_tag_name(name);
-
     let valid = [
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
         "source", "track", "wbr",
@@ -58,9 +56,9 @@ pub(crate) fn assert_valid_void_tag_name(name: &str) {
 
 pub(crate) fn assert_valid_attr_name(name: &str) {
     let valid = !name.is_empty()
-        && !name
-            .chars()
-            .any(|ch| ch.is_whitespace() || matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`'));
+        && name.chars().all(|ch| {
+            !ch.is_whitespace() && !matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`')
+        });
 
     assert!(valid, "invalid HTML attribute name: {name:?}");
 }

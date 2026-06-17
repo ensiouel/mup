@@ -31,9 +31,7 @@ impl Render for Markup {
 
 impl Render for str {
     fn render(&self, _children: Option<Markup>) -> Markup {
-        let mut out = String::new();
-        escape_text_into(self, &mut out);
-        Markup::raw(out)
+        render_escaped(self)
     }
 }
 
@@ -51,10 +49,9 @@ impl Render for Cow<'_, str> {
 
 impl<T: Render> Render for Option<T> {
     fn render(&self, children: Option<Markup>) -> Markup {
-        if let Some(value) = self.as_ref() {
-            value.render(children)
-        } else {
-            Markup::new()
+        match self {
+            Some(value) => value.render(children),
+            None => Markup::new(),
         }
     }
 }
@@ -62,9 +59,7 @@ impl<T: Render> Render for Option<T> {
 impl Render for char {
     fn render(&self, _children: Option<Markup>) -> Markup {
         let mut buffer = [0; 4];
-        let mut out = String::new();
-        escape_text_into(self.encode_utf8(&mut buffer), &mut out);
-        Markup::raw(out)
+        render_escaped(self.encode_utf8(&mut buffer))
     }
 }
 
@@ -83,6 +78,12 @@ macro_rules! impl_display_render {
 impl_display_render!(
     bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
 );
+
+fn render_escaped(text: &str) -> Markup {
+    let mut out = String::new();
+    escape_text_into(text, &mut out);
+    Markup::raw(out)
+}
 
 fn render_display(value: &impl std::fmt::Display) -> Markup {
     let mut out = String::new();
