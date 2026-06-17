@@ -215,15 +215,17 @@ let html = markup! {
 ```
 
 Parenthesized body nodes must contain Rust expressions. Use a block expression
-when local statements are needed; the old statement-only form is intentionally
-rejected.
+when local statements are needed.
 
-```rust,compile_fail
+```rust
 use mup::markup;
 
 let html = markup! {
     p {
-        (let a = 2; a)
+        ({
+            let a = 2;
+            a
+        })
     }
 };
 ```
@@ -426,14 +428,16 @@ let html = markup! {
 ```
 
 Attribute values use the same expression rule. Use `=({ ... })` for local
-statements, or short forms for function calls and field chains. The
-statement-only form is intentionally rejected.
+statements, or short forms for function calls and field chains.
 
-```rust,compile_fail
+```rust
 use mup::markup;
 
 let html = markup! {
-    div title=(let value = "title"; value) {}
+    div title=({
+        let value = "title";
+        value
+    }) {}
 };
 ```
 
@@ -770,6 +774,70 @@ let html = markup! {
     <p>generic badge</p>
     <p>children</p>
 </main>
+```
+
+## Component Methods
+
+Inside component bodies, `@self.method(...)` calls methods on the current
+component instance. Associated functions that do not take `self` can be called
+with `@Self::function(...)`.
+
+**Rust**
+
+```rust
+use mup::{component, markup};
+
+component! {
+    struct Profile {
+        first: String,
+        last: String,
+    } {
+        article {
+            h1 { @self.display_name(" ") }
+            p { @self.initials().to_uppercase() }
+            small { @Self::kind() }
+        }
+    }
+
+    impl Profile {
+        fn new(first: impl Into<String>, last: impl Into<String>) -> Self {
+            Self {
+                first: first.into(),
+                last: last.into(),
+            }
+        }
+
+        fn display_name(&self, separator: &str) -> String {
+            format!("{}{}{}", self.first, separator, self.last)
+        }
+
+        fn initials(&self) -> String {
+            format!(
+                "{}{}",
+                self.first.chars().next().unwrap_or_default(),
+                self.last.chars().next().unwrap_or_default()
+            )
+        }
+
+        fn kind() -> &'static str {
+            "profile"
+        }
+    }
+}
+
+let html = markup! {
+    @Profile::new("Ada", "Lovelace")
+};
+```
+
+**HTML result**
+
+```html
+<article>
+    <h1>Ada Lovelace</h1>
+    <p>AL</p>
+    <small>profile</small>
+</article>
 ```
 
 ## Component Slot Alias
