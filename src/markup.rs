@@ -280,3 +280,39 @@ impl fmt::Display for Markup {
         f.write_str(self.as_str())
     }
 }
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for Markup {
+    fn into_response(self) -> axum::response::Response {
+        (
+            [(
+                axum::http::header::CONTENT_TYPE,
+                "text/html; charset=utf-8",
+            )],
+            self.into_string(),
+        )
+            .into_response()
+    }
+}
+
+#[cfg(feature = "actix-web")]
+impl actix_web::Responder for Markup {
+    type Body = actix_web::body::BoxBody;
+
+    fn respond_to(self, _req: &actix_web::HttpRequest) -> actix_web::HttpResponse<Self::Body> {
+        actix_web::HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(self.into_string())
+    }
+}
+
+#[cfg(feature = "rocket")]
+impl<'r> rocket::response::Responder<'r, 'static> for Markup {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
+        let html = self.into_string();
+        rocket::Response::build()
+            .header(rocket::http::ContentType::HTML)
+            .sized_body(html.len(), std::io::Cursor::new(html))
+            .ok()
+    }
+}

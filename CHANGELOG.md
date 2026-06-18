@@ -6,36 +6,42 @@ The project follows Semantic Versioning while the public DSL is still young:
 patch releases should not intentionally break existing templates, and minor
 releases may add syntax or tighten diagnostics.
 
-## 0.5.0
+## 0.7.1
 
+### Changed
+
+- Cleaned up internal proc-macro code.
+- Added `(K, V)` tuple support for `Attributes`.
+
+## 0.7.0
 
 ### Added
 
+- Improved attribute handling in macros: more expression forms accepted.
+- Improved general attribute expressions across `markup!` and `component!`.
 
-- Support method calls in component markup
+## 0.6.0
 
+### Added
 
+- Support for field chains (`foo.bar.baz`) and method chains (`foo.bar()`) as
+  attribute values.
+
+## 0.5.0
+
+### Added
+
+- Support method calls in component markup.
 
 ## 0.4.0
 
-
 ### Added
 
-
-- Add generic components support
-
-
+- Generic components: `component!` structs can now have type parameters.
 
 ## 0.3.0
 
-
 ### Maintenance
-
-
-- Add CI release automation and project hardening
-
-
-## Unreleased
 
 - Added CI coverage for formatting, Clippy, tests, and documentation.
 - Added release automation for crates.io publishing.

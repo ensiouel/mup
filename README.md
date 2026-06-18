@@ -5,10 +5,6 @@
 [![Docs.rs](https://docs.rs/mup/badge.svg)](https://docs.rs/mup)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ensiouel/mup/blob/main/LICENSE)
 
-> **Note:** this codebase is fully AI-generated. `mup` is primarily a project
-> for my personal use, but it exists because, in my opinion, it solves several
-> practical problems I ran into while using similar Rust HTML DSLs.
-
 `mup` is a small Rust HTML DSL built around `markup!`, `component!`, `Markup`,
 and the `Render` trait.
 
@@ -63,6 +59,52 @@ The difference is the shape of the API:
 In short, `mup` tries to be as capable as the established Rust HTML DSLs while
 optimizing for dynamic markup ergonomics, component children, and partial
 responses.
+
+## Framework Integrations
+
+`mup` ships optional `IntoResponse` / `Responder` implementations for the most
+common Rust web frameworks. Enable the feature that matches your stack:
+
+```toml
+# Axum
+mup = { version = "0.7", features = ["axum"] }
+
+# Actix-web
+mup = { version = "0.7", features = ["actix-web"] }
+
+# Rocket
+mup = { version = "0.7", features = ["rocket"] }
+```
+
+Once enabled, return `Markup` directly from any handler — the response is sent
+with `Content-Type: text/html; charset=utf-8` automatically:
+
+```rust,ignore
+// Axum
+async fn page() -> Markup {
+    markup! { html { body { h1 { "Hello" } } } }
+}
+
+// Actix-web
+#[get("/")]
+async fn page() -> Markup {
+    markup! { html { body { h1 { "Hello" } } } }
+}
+
+// Rocket
+#[get("/")]
+fn page() -> Markup {
+    markup! { html { body { h1 { "Hello" } } } }
+}
+```
+
+Runnable server examples are in the `examples/` directory:
+
+```sh
+cargo run --example axum    --features axum
+cargo run --example actix   --features actix-web
+cargo run --example rocket  --features rocket
+```
 
 ## Feature Snapshot
 
@@ -1121,3 +1163,9 @@ let html = markup! {
     matched user: Ada
 </p>
 ```
+
+## Notes
+
+`mup` is primarily a personal project, started to solve practical problems I
+ran into while using similar Rust HTML DSLs. Contributions and feedback are
+welcome via GitHub issues.
