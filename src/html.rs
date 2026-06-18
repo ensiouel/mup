@@ -8,6 +8,7 @@ pub(crate) fn escape_attr_value_into(value: &str, out: &mut String) {
     escape_with(value, out, true);
 }
 
+// attr=true adds `"` to the escaped set; attribute values are double-quoted so `"` must be escaped.
 fn escape_with(value: &str, out: &mut String, attr: bool) {
     let mut start = 0;
 
@@ -35,30 +36,33 @@ pub(crate) fn push_display(out: &mut String, value: &impl fmt::Display) {
 }
 
 pub(crate) fn assert_valid_tag_name(name: &str) {
-    let valid = !name.is_empty()
-        && name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'));
-
-    assert!(valid, "invalid HTML tag name: {name:?}");
+    assert!(
+        !name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')),
+        "invalid HTML tag name: {name:?}"
+    );
 }
 
 pub(crate) fn assert_valid_void_tag_name(name: &str) {
-    let valid = [
-        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
-        "source", "track", "wbr",
-    ]
-    .iter()
-    .any(|tag| tag.eq_ignore_ascii_case(name));
-
-    assert!(valid, "not an HTML void element: {name:?}");
+    // eq_ignore_ascii_case: the HTML spec treats void element names as case-insensitive.
+    assert!(
+        ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
+            "source", "track", "wbr"]
+            .iter()
+            .any(|tag| tag.eq_ignore_ascii_case(name)),
+        "not an HTML void element: {name:?}"
+    );
 }
 
 pub(crate) fn assert_valid_attr_name(name: &str) {
-    let valid = !name.is_empty()
-        && name.chars().all(|ch| {
-            !ch.is_whitespace() && !matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`')
-        });
-
-    assert!(valid, "invalid HTML attribute name: {name:?}");
+    assert!(
+        !name.is_empty()
+            && name.chars().all(|ch| {
+                !ch.is_whitespace()
+                    && !matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`')
+            }),
+        "invalid HTML attribute name: {name:?}"
+    );
 }

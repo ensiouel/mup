@@ -40,7 +40,7 @@ impl MarkupPart {
 
     fn append_with_children(&self, children: &Markup, out: &mut Vec<Self>) {
         match self {
-            Self::Html(html) => push_markup_part(out, Self::Html(html.clone())),
+            Self::Html(_) => push_markup_part(out, self.clone()),
             Self::Children => children.append_parts_to(out),
             Self::Fragment { name, parts } => {
                 let mut fragment_parts = Vec::new();
@@ -152,12 +152,11 @@ impl Markup {
     /// Panics when the markup does not contain a slot.
     #[must_use]
     pub fn with_children(&self, children: impl Into<Markup>) -> Self {
-        let Some(template) = self.template.as_ref() else {
-            panic!("cannot render children into markup without a slot");
-        };
-        if !template.iter().any(MarkupPart::accepts_children) {
-            panic!("cannot render children into markup without a slot");
-        }
+        let template = self
+            .template
+            .as_deref()
+            .filter(|parts| parts.iter().any(MarkupPart::accepts_children))
+            .unwrap_or_else(|| panic!("cannot render children into markup without a slot"));
 
         let children = children.into();
         let mut parts = Vec::new();
@@ -190,6 +189,7 @@ impl Markup {
         let html_len = parts.iter().map(MarkupPart::html_len).sum();
         let mut html = String::with_capacity(html_len);
         let mut normalized = Vec::with_capacity(parts.len());
+        // Only set when a Children or Fragment part is seen; plain HTML skips template storage.
         let mut has_template_parts = false;
 
         for part in parts {
@@ -254,6 +254,7 @@ impl Markup {
     }
 }
 
+// Merges adjacent Html strings so part-list length stays O(template structure), not O(render calls).
 pub(crate) fn push_markup_part(parts: &mut Vec<MarkupPart>, part: MarkupPart) {
     match part {
         MarkupPart::Html(html) if html.is_empty() => {}
@@ -264,10 +265,7 @@ pub(crate) fn push_markup_part(parts: &mut Vec<MarkupPart>, part: MarkupPart) {
                 parts.push(MarkupPart::Html(html));
             }
         }
-        MarkupPart::Children => parts.push(MarkupPart::Children),
-        MarkupPart::Fragment { name, parts: body } => {
-            parts.push(MarkupPart::Fragment { name, parts: body });
-        }
+        part => parts.push(part),
     }
 }
 

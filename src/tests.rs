@@ -352,6 +352,17 @@ fn supports_explicit_attribute_spread() {
 }
 
 #[test]
+fn supports_tuple_pair_attribute_spread() {
+    let attr = ("data-value", "hello");
+
+    let actual = markup! {
+        div ..attr {}
+    };
+
+    assert_eq!(actual.as_str(), r#"<div data-value="hello"></div>"#);
+}
+
+#[test]
 fn supports_array_pair_attribute_spread() {
     let attrs = [("id", "foo"), ("data-kind", "array")];
 

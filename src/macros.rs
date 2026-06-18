@@ -149,6 +149,8 @@ macro_rules! __markup_component_collect_generics {
         }
     };
 
+    // Rust lexes `>>` as a single token. At depth 2 ([@ @]) it closes the outer `<`, emitting one
+    // extra `>` into the generics and finishing. At deeper levels it pops two `@` depth markers.
     (
         $mode:ident
         [$($state:tt)*]
@@ -1286,6 +1288,7 @@ macro_rules! __markup_if {
         $crate::__markup_if_chain!($builder; $ctx; __markup_if_matched; if $($tail)*);
     }};
 
+    // `@else if` and `@else @if` are different token sequences; both arms are needed.
     ($builder:ident; $ctx:tt; [$($condition:tt)+] { $($body:tt)* } @ else @ if $($tail:tt)*) => {{
         let __markup_if_matched = ::std::cell::Cell::new(false);
         if $($condition)+ {

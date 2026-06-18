@@ -98,6 +98,7 @@ pub fn push_attr_segments<V>(out: &mut String, segments: &[&str], value: &V)
 where
     V: AttributeValue + ?Sized,
 {
+    // Single segment skips the join allocation; multi-segment names are rare enough that this matters.
     match segments {
         [name] => value.render_attr_into(out, name),
         _ => value.render_attr_into(out, &join_segments(segments)),
@@ -124,6 +125,7 @@ where
     let value_start = classes.len();
     value.render_class_into(classes);
 
+    // If the value rendered nothing, roll back the space separator that was added above.
     if classes.len() == value_start {
         classes.truncate(original_len);
     }
@@ -152,11 +154,13 @@ fn build_prefixed_name(prefix: &str, segments: &[&str]) -> String {
         + segments.len().saturating_sub(1);
     let mut name = String::with_capacity(size);
     name.push_str(prefix);
-    for (i, seg) in segments.iter().enumerate() {
-        if i > 0 {
+    let mut iter = segments.iter();
+    if let Some(first) = iter.next() {
+        name.push_str(first);
+        for seg in iter {
             name.push('-');
+            name.push_str(seg);
         }
-        name.push_str(seg);
     }
     name
 }

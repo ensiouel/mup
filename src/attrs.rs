@@ -259,6 +259,16 @@ where
     }
 }
 
+impl<K, V> Attributes for (K, V)
+where
+    K: AttributeName,
+    V: AttributeValue,
+{
+    fn render_attrs_into(&self, out: &mut String) {
+        crate::template::push_attr(out, &self.0, &self.1);
+    }
+}
+
 impl<K, V> Attributes for [(K, V)]
 where
     K: AttributeName,
@@ -321,6 +331,7 @@ pub(crate) fn push_str_attr(out: &mut String, name: &str, value: &str) {
     out.push('"');
 }
 
+// Numeric Display output cannot contain HTML special chars, so no escaping is needed here.
 fn push_display_attr(out: &mut String, name: &str, value: &impl fmt::Display) {
     push_attr_prefix(out, name);
     push_display(out, value);
