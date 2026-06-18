@@ -852,6 +852,159 @@ fn component_macro_supports_struct_self_method_calls() {
 }
 
 #[test]
+fn component_macro_supports_struct_self_method_calls_in_for_heads() {
+    component! {
+        struct Options {
+            selected: String,
+        } {
+            select {
+                @for value in self.values() {
+                    option value=value selected=(value == selected) { @value }
+                }
+            }
+        }
+
+        impl Options {
+            fn values(&self) -> &'static [&'static str] {
+                &["a", "b"]
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Options {
+            selected: "b".to_owned()
+        }
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<select><option value="a">a</option><option value="b" selected>b</option></select>"#
+    );
+}
+
+#[test]
+fn component_macro_supports_self_in_rust_expression_positions() {
+    fn identity(value: String) -> String {
+        value
+    }
+
+    component! {
+        struct ChildLabel {
+            value: String,
+        } {
+            span.child { @value }
+        }
+
+        impl ChildLabel {
+            fn new(value: String) -> Self {
+                Self { value }
+            }
+        }
+
+        struct Probe {
+            value: String,
+        } {
+            @let label = self.label();
+
+            @if self.is_active() {
+                p.active { @label }
+            }
+
+            @if false {
+                p { "unreachable" }
+            } @else if self.has_value() {
+                p.fallback { "fallback" }
+            }
+
+            @match self.kind() {
+                "primary" => {
+                    strong { "primary" }
+                }
+                _ => {
+                    em { "other" }
+                }
+            }
+
+            div.(self.class_name()) #(self.id_value()) data-label=(self.label()) {
+                (self.label())
+            }
+
+            (self.tag_name()).dynamic data-kind=(self.kind()) {
+                "tag"
+            }
+
+            @ChildLabel {
+                value: self.child_label()
+            }
+
+            @ChildLabel::new(self.label())
+
+            p (self.attr_name())=(self.label()) ..(self.attrs()) {
+                @format!("{}", self.label())
+            }
+
+            p {
+                @identity(self.label())
+            }
+        }
+
+        impl Probe {
+            fn label(&self) -> String {
+                self.value.clone()
+            }
+
+            fn child_label(&self) -> String {
+                format!("child-{}", self.value)
+            }
+
+            fn is_active(&self) -> bool {
+                true
+            }
+
+            fn has_value(&self) -> bool {
+                !self.value.is_empty()
+            }
+
+            fn kind(&self) -> &'static str {
+                "primary"
+            }
+
+            fn class_name(&self) -> &'static str {
+                "primary"
+            }
+
+            fn id_value(&self) -> &'static str {
+                "probe"
+            }
+
+            fn tag_name(&self) -> &'static str {
+                "section"
+            }
+
+            fn attr_name(&self) -> &'static str {
+                "data-dynamic"
+            }
+
+            fn attrs(&self) -> [(&'static str, &'static str); 1] {
+                [("data-spread", "ok")]
+            }
+        }
+    }
+
+    let actual = markup! {
+        @Probe {
+            value: "Ada".to_owned()
+        }
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<p class="active">Ada</p><p class="fallback">fallback</p><strong>primary</strong><div class="primary" id="probe" data-label="Ada">Ada</div><section class="dynamic" data-kind="primary">tag</section><span class="child">child-Ada</span><span class="child">Ada</span><p data-dynamic="Ada" data-spread="ok">Ada</p><p>Ada</p>"#
+    );
+}
+
+#[test]
 fn component_macro_supports_struct_self_attribute_values() {
     component! {
         struct Link {
@@ -1075,6 +1228,32 @@ fn renders_struct_literal_props() {
         @Layout {
             title: "Props".to_owned()
         }
+    };
+
+    assert_eq!(actual.as_str(), "<section><h1>Props</h1></section>");
+}
+
+#[test]
+fn renders_struct_literal_shorthand_props() {
+    struct Layout {
+        title: String,
+    }
+
+    impl Render for Layout {
+        fn render(&self, _children: Option<Markup>) -> Markup {
+            let title = &self.title;
+
+            markup! {
+                section {
+                    h1 { @title }
+                }
+            }
+        }
+    }
+
+    let title = "Props".to_owned();
+    let actual = markup! {
+        @Layout { title }
     };
 
     assert_eq!(actual.as_str(), "<section><h1>Props</h1></section>");

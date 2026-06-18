@@ -1035,6 +1035,162 @@ macro_rules! __markup_component_markup {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_replace_self {
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*];) => {
+        $callback! { [$($args)*] [$($out)*] }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; self . $method:ident ( ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* $self_value . $method ()];
+            $($tail)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; self . $method:ident ( $($method_args:tt)+ ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_replace_self_continue_self_method;
+            [[$self_value] [$callback] [$($args)*] [$($out)*] [$method] [$($tail)*]];
+            [];
+            $($method_args)+
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; self . $field:ident $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* $self_value . $field];
+            $($tail)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; self $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* $self_value];
+            $($tail)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; ( $($inner:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_replace_self_continue_paren;
+            [[$self_value] [$callback] [$($args)*] [$($out)*] [$($tail)*]];
+            [];
+            $($inner)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; [ $($inner:tt)* ] $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_replace_self_continue_bracket;
+            [[$self_value] [$callback] [$($args)*] [$($out)*] [$($tail)*]];
+            [];
+            $($inner)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; { $($inner:tt)* } $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_replace_self_continue_brace;
+            [[$self_value] [$callback] [$($args)*] [$($out)*] [$($tail)*]];
+            [];
+            $($inner)*
+        }
+    };
+
+    ([$self_value:tt]; $callback:path; [$($args:tt)*]; [$($out:tt)*]; $next:tt $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* $next];
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_replace_self_continue_self_method {
+    (
+        [[$self_value:tt] [$callback:path] [$($args:tt)*] [$($out:tt)*] [$method:ident] [$($tail:tt)*]]
+        [$($method_args:tt)+]
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* $self_value . $method ( $($method_args)+ )];
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_replace_self_continue_paren {
+    (
+        [[$self_value:tt] [$callback:path] [$($args:tt)*] [$($out:tt)*] [$($tail:tt)*]]
+        [$($inner:tt)*]
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* ( $($inner)* )];
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_replace_self_continue_bracket {
+    (
+        [[$self_value:tt] [$callback:path] [$($args:tt)*] [$($out:tt)*] [$($tail:tt)*]]
+        [$($inner:tt)*]
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* [ $($inner)* ]];
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_replace_self_continue_brace {
+    (
+        [[$self_value:tt] [$callback:path] [$($args:tt)*] [$($out:tt)*] [$($tail:tt)*]]
+        [$($inner:tt)*]
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $callback;
+            [$($args)*];
+            [$($out)* { $($inner)* }];
+            $($tail)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_children_markup {
     ($ctx:tt; $($tokens:tt)*) => {{
         let mut __markup_template = $crate::template::TemplateBuilder::new();
@@ -1104,12 +1260,36 @@ macro_rules! __markup_nodes {
         $crate::__markup_match!($builder; $ctx; [] $($tail)*);
     };
 
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_macro_call_emit;
+            [$builder; [$children; $self_value]; $macro; [$($rest)*]];
+            [];
+            $($args)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; @ $macro:ident ! ( $($args:tt)* ) $($rest:tt)*) => {{
         let __markup_markup =
             $crate::template::render(&$macro!($($args)*), ::std::option::Option::None);
         $builder.push_markup(&__markup_markup);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
+
+    ($builder:ident; $ctx:tt; @ $function:ident :: < $($tail:tt)*) => {
+        $crate::__markup_turbofish_function!($builder; $ctx; $function; [] [@] $($tail)*);
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ ( $($args:tt)* ) { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_call_emit_children;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($component_children)*]; [$($rest)*]];
+            [];
+            $($args)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ ( $($args:tt)* ) { $($component_children:tt)* } $($rest:tt)*) => {{
         let __markup_value = $head $(:: $segment)+ ( $($args)* );
@@ -1119,11 +1299,105 @@ macro_rules! __markup_nodes {
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_call_emit;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($rest)*]];
+            [];
+            $($args)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ ( $($args:tt)* ) $($rest:tt)*) => {{
         let __markup_markup = $crate::template::render(&$head $(:: $segment)+ ( $($args)* ), ::std::option::Option::None);
         $builder.push_markup(&__markup_markup);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ { $field:ident : $($props:tt)* } { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_component_literal_emit_children;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($component_children)*]; [$($rest)*]];
+            [];
+            $field : $($props)*
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ { $field:ident : $($props:tt)* } { $($component_children:tt)* } $($rest:tt)*) => {{
+        let __markup_component = $head $(:: $segment)+ { $field: $($props)* };
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ { $field:ident $(, $($props:tt)*)? } { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_component_literal_emit_children;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($component_children)*]; [$($rest)*]];
+            [];
+            $field $(, $($props)*)?
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ { $field:ident $(, $($props:tt)*)? } { $($component_children:tt)* } $($rest:tt)*) => {{
+        let __markup_component = $head $(:: $segment)+ { $field $(, $($props)*)? };
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ { $field:ident : $($props:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_component_literal_emit;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($rest)*]];
+            [];
+            $field : $($props)*
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ { $field:ident : $($props:tt)* } $($rest:tt)*) => {{
+        let __markup_component = $head $(:: $segment)+ { $field: $($props)* };
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $head:ident $(:: $segment:ident)+ { $field:ident $(, $($props:tt)*)? } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_path_component_literal_emit;
+            [$builder; [$children; $self_value]; [$head $(:: $segment)+]; [$($rest)*]];
+            [];
+            $field $(, $($props)*)?
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ { $field:ident $(, $($props:tt)*)? } $($rest:tt)*) => {{
+        let __markup_component = $head $(:: $segment)+ { $field $(, $($props)*)? };
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; $ctx:tt; @ $head:ident $(:: $segment:ident)+ $($rest:tt)*) => {
+        $crate::__markup_rust_value!($builder; $ctx; [$head $(:: $segment)+] $($rest)*);
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $function:ident ( $($args:tt)* ) { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_function_call_emit_children;
+            [$builder; [$children; $self_value]; $function; [$($component_children)*]; [$($rest)*]];
+            [];
+            $($args)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; @ $function:ident ( $($args:tt)* ) { $($component_children:tt)* } $($rest:tt)*) => {{
         let __markup_value = $function($($args)*);
@@ -1133,12 +1407,32 @@ macro_rules! __markup_nodes {
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $function:ident ( $($args:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_function_call_emit;
+            [$builder; [$children; $self_value]; $function; [$($rest)*]];
+            [];
+            $($args)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; @ $function:ident ( $($args:tt)* ) $($rest:tt)*) => {{
         let __markup_markup =
             $crate::template::render(&$function($($args)*), ::std::option::Option::None);
         $builder.push_markup(&__markup_markup);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $component:ident { $field:ident : $($props:tt)* } { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_component_literal_emit_children;
+            [$builder; [$children; $self_value]; $component; [$($component_children)*]; [$($rest)*]];
+            [];
+            $field : $($props)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; @ $component:ident { $field:ident : $($props:tt)* } { $($component_children:tt)* } $($rest:tt)*) => {{
         let __markup_component = $component { $field: $($props)* };
@@ -1148,8 +1442,53 @@ macro_rules! __markup_nodes {
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $component:ident { $field:ident $(, $($props:tt)*)? } { $($component_children:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_component_literal_emit_children;
+            [$builder; [$children; $self_value]; $component; [$($component_children)*]; [$($rest)*]];
+            [];
+            $field $(, $($props)*)?
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $component:ident { $field:ident $(, $($props:tt)*)? } { $($component_children:tt)* } $($rest:tt)*) => {{
+        let __markup_component = $component { $field $(, $($props)*)? };
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $component:ident { $field:ident : $($props:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_component_literal_emit;
+            [$builder; [$children; $self_value]; $component; [$($rest)*]];
+            [];
+            $field : $($props)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; @ $component:ident { $field:ident : $($props:tt)* } $($rest:tt)*) => {{
         let __markup_component = $component { $field: $($props)* };
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; @ $component:ident { $field:ident $(, $($props:tt)*)? } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_component_literal_emit;
+            [$builder; [$children; $self_value]; $component; [$($rest)*]];
+            [];
+            $field $(, $($props)*)?
+        }
+    };
+
+    ($builder:ident; $ctx:tt; @ $component:ident { $field:ident $(, $($props:tt)*)? } $($rest:tt)*) => {{
+        let __markup_component = $component { $field $(, $($props)*)? };
         let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
         $builder.push_markup(&__markup_markup);
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
@@ -1180,29 +1519,99 @@ macro_rules! __markup_nodes {
         $crate::__markup_element!($builder; $ctx; "div"; [] []; []; # $($tail)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) { $($body:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [{ $($body)* } $($rest)*]];
+            [];
+            $($tag)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; ( $tag:expr ) { $($body:tt)* } $($rest:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; { $($body)* } $($rest)*);
     }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) . $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [. $($tail)*]];
+            [];
+            $($tag)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; ( $tag:expr ) . $($tail:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; . $($tail)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) # $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [# $($tail)*]];
+            [];
+            $($tag)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; ( $tag:expr ) # $($tail:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; # $($tail)*);
     }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) .. $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [.. $($tail)*]];
+            [];
+            $($tag)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; ( $tag:expr ) .. $($tail:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; .. $($tail)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) ( $($attrs:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [( $($attrs)* ) $($tail)*]];
+            [];
+            $($tag)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; ( $tag:expr ) ( $($attrs:tt)* ) $($tail:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; ( $($attrs)* ) $($tail)*);
     }};
 
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($tag:tt)* ) $attr:ident $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_dynamic_element_emit;
+            [$builder; [$children; $self_value]; [$attr $($tail)*]];
+            [];
+            $($tag)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; ( $tag:expr ) $attr:ident $($tail:tt)*) => {{
         $crate::__markup_dynamic_element!($builder; $ctx; $tag; $attr $($tail)*);
     }};
+
+    ($builder:ident; [$children:ident; $self_value:tt]; ( $($value:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_expr_emit;
+            [$builder; [$children; $self_value]; [$($rest)*]];
+            [];
+            $($value)*
+        }
+    };
 
     ($builder:ident; $ctx:tt; ( $value:expr ) $($rest:tt)*) => {{
         let __markup_markup = $crate::template::render(&$value, ::std::option::Option::None);
@@ -1261,7 +1670,185 @@ macro_rules! __markup_dynamic_element {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_dynamic_element_emit {
+    ([$builder:ident; $ctx:tt; [$($tail:tt)*]] [$($tag:tt)+]) => {{
+        $crate::__markup_dynamic_element!($builder; $ctx; $($tag)+; $($tail)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_expr_emit {
+    ([$builder:ident; $ctx:tt; [$($rest:tt)*]] [$($value:tt)+]) => {{
+        let __markup_markup = $crate::template::render(&($($value)+), ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_literal_emit_children {
+    (
+        [$builder:ident; $ctx:tt; $component:ident; [$($component_children:tt)*]; [$($rest:tt)*]]
+        [$($props:tt)+]
+    ) => {{
+        let __markup_component = $component { $($props)+ };
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_component_literal_emit {
+    ([$builder:ident; $ctx:tt; $component:ident; [$($rest:tt)*]] [$($props:tt)+]) => {{
+        let __markup_component = $component { $($props)+ };
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_path_component_literal_emit_children {
+    (
+        [$builder:ident; $ctx:tt; [$($path:tt)+]; [$($component_children:tt)*]; [$($rest:tt)*]]
+        [$($props:tt)+]
+    ) => {{
+        let __markup_component = $($path)+ { $($props)+ };
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_path_component_literal_emit {
+    ([$builder:ident; $ctx:tt; [$($path:tt)+]; [$($rest:tt)*]] [$($props:tt)+]) => {{
+        let __markup_component = $($path)+ { $($props)+ };
+        let __markup_markup = $crate::template::render(&__markup_component, ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_macro_call_emit {
+    ([$builder:ident; $ctx:tt; $macro:ident; [$($rest:tt)*]] [$($args:tt)*]) => {{
+        let __markup_markup =
+            $crate::template::render(&$macro!($($args)*), ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_path_call_emit_children {
+    (
+        [$builder:ident; $ctx:tt; [$($path:tt)+]; [$($component_children:tt)*]; [$($rest:tt)*]]
+        [$($args:tt)*]
+    ) => {{
+        let __markup_value = $($path)+($($args)*);
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_value, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_path_call_emit {
+    ([$builder:ident; $ctx:tt; [$($path:tt)+]; [$($rest:tt)*]] [$($args:tt)*]) => {{
+        let __markup_markup = $crate::template::render(&$($path)+($($args)*), ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_function_call_emit_children {
+    (
+        [$builder:ident; $ctx:tt; $function:ident; [$($component_children:tt)*]; [$($rest:tt)*]]
+        [$($args:tt)*]
+    ) => {{
+        let __markup_value = $function($($args)*);
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_value, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_function_call_emit {
+    ([$builder:ident; $ctx:tt; $function:ident; [$($rest:tt)*]] [$($args:tt)*]) => {{
+        let __markup_markup =
+            $crate::template::render(&$function($($args)*), ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_turbofish_function_call_emit_children {
+    (
+        [
+            $builder:ident;
+            $ctx:tt;
+            $function:ident;
+            [$($generics:tt)*];
+            [$($component_children:tt)*];
+            [$($rest:tt)*]
+        ]
+        [$($args:tt)*]
+    ) => {{
+        let __markup_value = $function::<$($generics)*>($($args)*);
+        let __markup_children = $crate::__markup_children_markup!($ctx; $($component_children)*);
+        let __markup_markup = $crate::template::render(&__markup_value, ::std::option::Option::Some(__markup_children));
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_turbofish_function_call_emit {
+    (
+        [$builder:ident; $ctx:tt; $function:ident; [$($generics:tt)*]; [$($rest:tt)*]]
+        [$($args:tt)*]
+    ) => {{
+        let __markup_markup =
+            $crate::template::render(&$function::<$($generics)*>($($args)*), ::std::option::Option::None);
+        $builder.push_markup(&__markup_markup);
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_let {
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($statement:tt)+] ; $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_let_emit;
+            [$builder; [$children; $self_value]; [$($rest)*]];
+            [];
+            $($statement)+
+        }
+    };
+
     ($builder:ident; $ctx:tt; [$($statement:tt)+] ; $($rest:tt)*) => {{
         let $($statement)+;
         $crate::__markup_nodes!($builder; $ctx; $($rest)*);
@@ -1278,7 +1865,56 @@ macro_rules! __markup_let {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_let_emit {
+    ([$builder:ident; $ctx:tt; [$($rest:tt)*]] [$($statement:tt)+]) => {{
+        let $($statement)+;
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_if {
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($condition:tt)+] { $($body:tt)* } @ else if $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_if_emit_else_if;
+            [$builder; [$children; $self_value]; [$($body)*]; [$($tail)*]];
+            [];
+            $($condition)+
+        }
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($condition:tt)+] { $($body:tt)* } @ else @ if $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_if_emit_else_if;
+            [$builder; [$children; $self_value]; [$($body)*]; [$($tail)*]];
+            [];
+            $($condition)+
+        }
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($condition:tt)+] { $($body:tt)* } @ else { $($else_body:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_if_emit_else;
+            [$builder; [$children; $self_value]; [$($body)*]; [$($else_body)*]; [$($rest)*]];
+            [];
+            $($condition)+
+        }
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($condition:tt)+] { $($body:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_if_emit;
+            [$builder; [$children; $self_value]; [$($body)*]; [$($rest)*]];
+            [];
+            $($condition)+
+        }
+    };
+
     ($builder:ident; $ctx:tt; [$($condition:tt)+] { $($body:tt)* } @ else if $($tail:tt)*) => {{
         let __markup_if_matched = ::std::cell::Cell::new(false);
         if $($condition)+ {
@@ -1325,6 +1961,46 @@ macro_rules! __markup_if {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_if_emit_else_if {
+    ([$builder:ident; $ctx:tt; [$($body:tt)*]; [$($tail:tt)*]] [$($condition:tt)+]) => {{
+        let __markup_if_matched = ::std::cell::Cell::new(false);
+        if $($condition)+ {
+            __markup_if_matched.set(true);
+            $crate::__markup_nodes!($builder; $ctx; $($body)*);
+        }
+        $crate::__markup_if_chain!($builder; $ctx; __markup_if_matched; if $($tail)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_if_emit_else {
+    (
+        [$builder:ident; $ctx:tt; [$($body:tt)*]; [$($else_body:tt)*]; [$($rest:tt)*]]
+        [$($condition:tt)+]
+    ) => {{
+        if $($condition)+ {
+            $crate::__markup_nodes!($builder; $ctx; $($body)*);
+        } else {
+            $crate::__markup_nodes!($builder; $ctx; $($else_body)*);
+        }
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_if_emit {
+    ([$builder:ident; $ctx:tt; [$($body:tt)*]; [$($rest:tt)*]] [$($condition:tt)+]) => {{
+        if $($condition)+ {
+            $crate::__markup_nodes!($builder; $ctx; $($body)*);
+        }
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_if_chain {
     ($builder:ident; $ctx:tt; $matched:ident; if $($tail:tt)*) => {
         $crate::__markup_if_chain_condition!($builder; $ctx; $matched; [] $($tail)*);
@@ -1357,6 +2033,16 @@ macro_rules! __markup_if_chain {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_if_chain_condition {
+    ($builder:ident; [$children:ident; $self_value:tt]; $matched:ident; [$($condition:tt)+] { $($body:tt)* } $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_if_chain_condition_emit;
+            [$builder; [$children; $self_value]; $matched; [$($body)*]; [$($tail)*]];
+            [];
+            $($condition)+
+        }
+    };
+
     ($builder:ident; $ctx:tt; $matched:ident; [$($condition:tt)+] { $($body:tt)* } $($tail:tt)*) => {{
         if !$matched.get() {
             if $($condition)+ {
@@ -1378,7 +2064,34 @@ macro_rules! __markup_if_chain_condition {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_if_chain_condition_emit {
+    (
+        [$builder:ident; $ctx:tt; $matched:ident; [$($body:tt)*]; [$($tail:tt)*]]
+        [$($condition:tt)+]
+    ) => {{
+        if !$matched.get() {
+            if $($condition)+ {
+                $matched.set(true);
+                $crate::__markup_nodes!($builder; $ctx; $($body)*);
+            }
+        }
+        $crate::__markup_if_chain!($builder; $ctx; $matched; $($tail)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_for {
+    ($builder:ident; [$children:ident; $self_value:tt]; [$($head:tt)+] { $($body:tt)* } $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_for_emit;
+            [$builder; [$children; $self_value]; [$($body)*]; [$($rest)*]];
+            [];
+            $($head)+
+        }
+    };
+
     ($builder:ident; $ctx:tt; [$($head:tt)+] { $($body:tt)* } $($rest:tt)*) => {{
         for $($head)+ {
             $crate::__markup_nodes!($builder; $ctx; $($body)*);
@@ -1397,7 +2110,47 @@ macro_rules! __markup_for {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_for_emit {
+    ([$builder:ident; $ctx:tt; [$($body:tt)*]; [$($rest:tt)*]] [$($head:tt)+]) => {{
+        for $($head)+ {
+            $crate::__markup_nodes!($builder; $ctx; $($body)*);
+        }
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_match {
+    (
+        $builder:ident;
+        [$children:ident; $self_value:tt];
+        [$($value:tt)+]
+        {
+            $(
+                $pattern:pat_param $(| $alt_pattern:pat_param)* $(if $guard:expr)? => { $($body:tt)* } $(,)?
+            )*
+        }
+        $($rest:tt)*
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_match_emit;
+            [
+                $builder;
+                [$children; $self_value];
+                [
+                    $(
+                        $pattern $(| $alt_pattern)* $(if $guard)? => { $($body)* },
+                    )*
+                ];
+                [$($rest)*]
+            ];
+            [];
+            $($value)+
+        }
+    };
+
     (
         $builder:ident;
         $ctx:tt;
@@ -1430,6 +2183,33 @@ macro_rules! __markup_match {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_match_emit {
+    (
+        [
+            $builder:ident;
+            $ctx:tt;
+            [
+                $(
+                    $pattern:pat_param $(| $alt_pattern:pat_param)* $(if $guard:expr)? => { $($body:tt)* },
+                )*
+            ];
+            [$($rest:tt)*]
+        ]
+        [$($value:tt)+]
+    ) => {{
+        match $($value)+ {
+            $(
+                $pattern $(| $alt_pattern)* $(if $guard)? => {
+                    $crate::__markup_nodes!($builder; $ctx; $($body)*);
+                }
+            )*
+        }
+        $crate::__markup_nodes!($builder; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_rust_value {
     ($builder:ident; $ctx:tt; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($tail:tt)*) => {
         $crate::__markup_rust_value!($builder; $ctx; [$($value)+ . $method ( $($args)* )] $($tail)*);
@@ -1449,6 +2229,16 @@ macro_rules! __markup_rust_value {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __markup_element {
+    ($builder:ident; [$children:ident; $self_value:tt]; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; . ( $($class_value:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_element_class_expr_emit;
+            [$builder; [$children; $self_value]; [$tag]; [$($class,)*]; [$($id)?]; [$($attrs)*]; [$($tail)*]];
+            [];
+            $($class_value)*
+        }
+    };
+
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; . ( $class_value:expr ) $($tail:tt)*) => {
         $crate::__markup_element!(
             $builder;
@@ -1475,6 +2265,16 @@ macro_rules! __markup_element {
             [$($attrs)*];
             $($tail)*
         );
+    };
+
+    ($builder:ident; [$children:ident; $self_value:tt]; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; # ( $($id_value:tt)* ) $($tail:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_element_id_expr_emit;
+            [$builder; [$children; $self_value]; [$tag]; [$($class,)*]; [$($attrs)*]; [$($tail)*]];
+            [];
+            $($id_value)*
+        }
     };
 
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; # ( $id_value:expr ) $($tail:tt)*) => {
@@ -1558,6 +2358,59 @@ macro_rules! __markup_element {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_element_class_expr_emit {
+    (
+        [
+            $builder:ident;
+            $ctx:tt;
+            [$tag:expr];
+            [$($class:expr,)*];
+            [$($id:expr)?];
+            [$($attrs:tt)*];
+            [$($tail:tt)*]
+        ]
+        [$($class_value:tt)+]
+    ) => {
+        $crate::__markup_element!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)* $($class_value)+,]
+            [$($id)?];
+            [$($attrs)*];
+            $($tail)*
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_element_id_expr_emit {
+    (
+        [
+            $builder:ident;
+            $ctx:tt;
+            [$tag:expr];
+            [$($class:expr,)*];
+            [$($attrs:tt)*];
+            [$($tail:tt)*]
+        ]
+        [$($id_value:tt)+]
+    ) => {
+        $crate::__markup_element!(
+            $builder;
+            $ctx;
+            $tag;
+            [$($class,)*]
+            [$($id_value)+];
+            [$($attrs)*];
+            $($tail)*
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_element_attr_field_value {
     ($builder:ident; $ctx:tt; $tag:expr; [$($class:expr,)*] [$($id:expr)?]; [$($attrs:tt)*]; [$($value:tt)+] . $method:ident ( $($args:tt)* ) $($tail:tt)*) => {
         $crate::__markup_element_attr_field_value!(
@@ -1627,6 +2480,16 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
+    ($out:expr; [$children:ident; $self_value:tt]; .. ( $($attrs:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attrs_spread_expr_emit;
+            [$out; [$children; $self_value]; [$($rest)*]];
+            [];
+            $($attrs)*
+        }
+    };
+
     ($out:expr; $ctx:tt; .. ($attrs:expr) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
@@ -1642,6 +2505,16 @@ macro_rules! __markup_attrs {
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
 
+    ($out:expr; [$children:ident; $self_value:tt]; (.. $($attrs:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attrs_spread_expr_emit;
+            [$out; [$children; $self_value]; [$($rest)*]];
+            [];
+            $($attrs)*
+        }
+    };
+
     ($out:expr; $ctx:tt; (.. $attrs:expr) $($rest:tt)*) => {{
         $crate::template::push_attrs(&mut $out, &$attrs);
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
@@ -1653,6 +2526,16 @@ macro_rules! __markup_attrs {
 
     ($out:expr; $ctx:tt; ([$($attrs:tt)*] ...) $($rest:tt)*) => {
         compile_error!("attribute spread syntax changed: use `..[attrs]` instead of `([attrs]...)`");
+    };
+
+    ($out:expr; [$children:ident; $self_value:tt]; ( $($name:tt)* ) = ( $($value:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attr_dynamic_name_then_value;
+            [$self_value; $out; [$children; $self_value]; [$($value)*]; [$($rest)*]];
+            [];
+            $($name)*
+        }
     };
 
     ($out:expr; $ctx:tt; ($name:expr) = ($value:expr) $($rest:tt)*) => {{
@@ -1692,6 +2575,16 @@ macro_rules! __markup_attrs {
         $crate::template::push_attr(&mut $out, &$name, &$value);
         $crate::__markup_attrs!($out; $ctx; $($rest)*);
     }};
+
+    ($out:expr; [$children:ident; $self_value:tt]; $name:literal = ( $($value:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attr_literal_expr_emit;
+            [$out; [$children; $self_value]; $name; [$($rest)*]];
+            [];
+            $($value)*
+        }
+    };
 
     ($out:expr; $ctx:tt; $name:literal = ($value:expr) $($rest:tt)*) => {{
         $crate::template::push_attr(&mut $out, &$name, &$value);
@@ -1790,9 +2683,72 @@ macro_rules! __markup_attr_field_value {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __markup_attr_literal_expr_emit {
+    ([$out:expr; $ctx:tt; $name:literal; [$($rest:tt)*]] [$($value:tt)+]) => {{
+        $crate::template::push_attr(&mut $out, &$name, &($($value)+));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attrs_spread_expr_emit {
+    ([$out:expr; $ctx:tt; [$($rest:tt)*]] [$($attrs:tt)+]) => {{
+        $crate::template::push_attrs(&mut $out, &($($attrs)+));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_dynamic_name_then_value {
+    (
+        [$self_value:tt; $out:expr; $ctx:tt; [$($value:tt)*]; [$($rest:tt)*]]
+        [$($name:tt)+]
+    ) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attr_dynamic_expr_emit;
+            [$out; $ctx; [$($name)+]; [$($rest)*]];
+            [];
+            $($value)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_dynamic_expr_emit {
+    ([$out:expr; $ctx:tt; [$($name:tt)+]; [$($rest:tt)*]] [$($value:tt)+]) => {{
+        $crate::template::push_attr(&mut $out, &($($name)+), &($($value)+));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __markup_attr_segments_expr_emit {
+    ([$out:expr; $ctx:tt; [$($segment:ident),+]; [$($rest:tt)*]] [$($value:tt)+]) => {{
+        $crate::template::push_attr_segments(&mut $out, &[$(stringify!($segment)),+], &($($value)+));
+        $crate::__markup_attrs!($out; $ctx; $($rest)*);
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __markup_attr_name {
     ($out:expr; $ctx:tt; [$($segment:ident),+] - $next:ident $($tail:tt)*) => {
         $crate::__markup_attr_name!($out; $ctx; [$($segment,)+ $next] $($tail)*);
+    };
+
+    ($out:expr; [$children:ident; $self_value:tt]; [$($segment:ident),+] = ( $($value:tt)* ) $($rest:tt)*) => {
+        $crate::__markup_replace_self! {
+            [$self_value];
+            $crate::__markup_attr_segments_expr_emit;
+            [$out; [$children; $self_value]; [$($segment),+]; [$($rest)*]];
+            [];
+            $($value)*
+        }
     };
 
     ($out:expr; $ctx:tt; [$($segment:ident),+] = ($value:expr) $($rest:tt)*) => {{
