@@ -48,10 +48,12 @@ pub(crate) fn assert_valid_tag_name(name: &str) {
 pub(crate) fn assert_valid_void_tag_name(name: &str) {
     // eq_ignore_ascii_case: the HTML spec treats void element names as case-insensitive.
     assert!(
-        ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
-            "source", "track", "wbr"]
-            .iter()
-            .any(|tag| tag.eq_ignore_ascii_case(name)),
+        [
+            "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
+            "source", "track", "wbr"
+        ]
+        .iter()
+        .any(|tag| tag.eq_ignore_ascii_case(name)),
         "not an HTML void element: {name:?}"
     );
 }
@@ -60,8 +62,7 @@ pub(crate) fn assert_valid_attr_name(name: &str) {
     assert!(
         !name.is_empty()
             && name.chars().all(|ch| {
-                !ch.is_whitespace()
-                    && !matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`')
+                !ch.is_whitespace() && !matches!(ch, '"' | '\'' | '>' | '<' | '=' | '/' | '`')
             }),
         "invalid HTML attribute name: {name:?}"
     );

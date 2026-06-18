@@ -285,10 +285,7 @@ impl fmt::Display for Markup {
 impl axum::response::IntoResponse for Markup {
     fn into_response(self) -> axum::response::Response {
         (
-            [(
-                axum::http::header::CONTENT_TYPE,
-                "text/html; charset=utf-8",
-            )],
+            [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
             self.into_string(),
         )
             .into_response()
