@@ -52,11 +52,19 @@ impl<T: AttributeName> AttributeName for Option<T> {
 pub trait AttributeValue {
     /// Appends this value as attribute `name` into `out`.
     fn render_attr_into(&self, out: &mut String, name: &str);
+
+    #[doc(hidden)]
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        self.render_attr_into(out, name);
+    }
 }
 
 impl<T: AttributeValue + ?Sized> AttributeValue for &T {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         (*self).render_attr_into(out, name);
+    }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        (*self).render_static_attr_into(out, name);
     }
 }
 
@@ -64,6 +72,12 @@ impl AttributeValue for bool {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         if *self {
             push_boolean_attr(out, name);
+        }
+    }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        if *self {
+            out.push(' ');
+            out.push_str(name);
         }
     }
 }
@@ -74,11 +88,19 @@ impl<T: AttributeValue> AttributeValue for Option<T> {
             value.render_attr_into(out, name);
         }
     }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        if let Some(value) = self.as_ref() {
+            value.render_static_attr_into(out, name);
+        }
+    }
 }
 
 impl AttributeValue for Markup {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         push_str_attr(out, name, self.as_str());
+    }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        push_str_attr_unchecked(out, name, self.as_str());
     }
 }
 
@@ -86,11 +108,18 @@ impl AttributeValue for str {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         push_str_attr(out, name, self);
     }
+    #[inline]
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        push_str_attr_unchecked(out, name, self);
+    }
 }
 
 impl AttributeValue for String {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         self.as_str().render_attr_into(out, name);
+    }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        push_str_attr_unchecked(out, name, self);
     }
 }
 
@@ -98,12 +127,19 @@ impl AttributeValue for Cow<'_, str> {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         self.as_ref().render_attr_into(out, name);
     }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        push_str_attr_unchecked(out, name, self.as_ref());
+    }
 }
 
 impl AttributeValue for char {
     fn render_attr_into(&self, out: &mut String, name: &str) {
         let mut buffer = [0; 4];
         push_str_attr(out, name, self.encode_utf8(&mut buffer));
+    }
+    fn render_static_attr_into(&self, out: &mut String, name: &str) {
+        let mut buffer = [0; 4];
+        push_str_attr_unchecked(out, name, self.encode_utf8(&mut buffer));
     }
 }
 
@@ -113,6 +149,9 @@ macro_rules! impl_display_attr_value {
             impl AttributeValue for $ty {
                 fn render_attr_into(&self, out: &mut String, name: &str) {
                     push_display_attr(out, name, self);
+                }
+                fn render_static_attr_into(&self, out: &mut String, name: &str) {
+                    push_display_attr_unchecked(out, name, self);
                 }
             }
         )*
@@ -129,11 +168,24 @@ impl_display_attr_value!(
 pub trait ClassValue {
     /// Appends this class segment into `out`.
     fn render_class_into(&self, out: &mut String);
+
+    /// Appends this class segment into `out` with HTML attribute escaping.
+    ///
+    /// Used when writing directly into the output buffer to skip the intermediate class String.
+    #[doc(hidden)]
+    fn render_class_attr_into(&self, out: &mut String) {
+        let mut buf = String::new();
+        self.render_class_into(&mut buf);
+        escape_attr_value_into(&buf, out);
+    }
 }
 
 impl<T: ClassValue + ?Sized> ClassValue for &T {
     fn render_class_into(&self, out: &mut String) {
         (*self).render_class_into(out);
+    }
+    fn render_class_attr_into(&self, out: &mut String) {
+        (*self).render_class_attr_into(out);
     }
 }
 
@@ -143,11 +195,19 @@ impl<T: ClassValue> ClassValue for Option<T> {
             value.render_class_into(out);
         }
     }
+    fn render_class_attr_into(&self, out: &mut String) {
+        if let Some(value) = self.as_ref() {
+            value.render_class_attr_into(out);
+        }
+    }
 }
 
 impl ClassValue for Markup {
     fn render_class_into(&self, out: &mut String) {
         out.push_str(self.as_str());
+    }
+    fn render_class_attr_into(&self, out: &mut String) {
+        escape_attr_value_into(self.as_str(), out);
     }
 }
 
@@ -155,11 +215,18 @@ impl ClassValue for str {
     fn render_class_into(&self, out: &mut String) {
         out.push_str(self);
     }
+    #[inline]
+    fn render_class_attr_into(&self, out: &mut String) {
+        escape_attr_value_into(self, out);
+    }
 }
 
 impl ClassValue for String {
     fn render_class_into(&self, out: &mut String) {
         self.as_str().render_class_into(out);
+    }
+    fn render_class_attr_into(&self, out: &mut String) {
+        escape_attr_value_into(self, out);
     }
 }
 
@@ -167,11 +234,18 @@ impl ClassValue for Cow<'_, str> {
     fn render_class_into(&self, out: &mut String) {
         self.as_ref().render_class_into(out);
     }
+    fn render_class_attr_into(&self, out: &mut String) {
+        escape_attr_value_into(self.as_ref(), out);
+    }
 }
 
 impl ClassValue for char {
     fn render_class_into(&self, out: &mut String) {
         out.push(*self);
+    }
+    fn render_class_attr_into(&self, out: &mut String) {
+        let mut buf = [0; 4];
+        escape_attr_value_into(self.encode_utf8(&mut buf), out);
     }
 }
 
@@ -331,9 +405,29 @@ pub(crate) fn push_str_attr(out: &mut String, name: &str, value: &str) {
     out.push('"');
 }
 
+// ponytail: macro-validated static attr name, skip assert_valid_attr_name
+#[inline]
+pub(crate) fn push_str_attr_unchecked(out: &mut String, name: &str, value: &str) {
+    out.push(' ');
+    out.push_str(name);
+    out.push_str("=\"");
+    escape_attr_value_into(value, out);
+    out.push('"');
+}
+
 // Numeric Display output cannot contain HTML special chars, so no escaping is needed here.
 fn push_display_attr(out: &mut String, name: &str, value: &impl fmt::Display) {
     push_attr_prefix(out, name);
+    push_display(out, value);
+    out.push('"');
+}
+
+// ponytail: macro-validated static attr name, skip assert_valid_attr_name
+#[inline]
+fn push_display_attr_unchecked(out: &mut String, name: &str, value: &impl fmt::Display) {
+    out.push(' ');
+    out.push_str(name);
+    out.push_str("=\"");
     push_display(out, value);
     out.push('"');
 }

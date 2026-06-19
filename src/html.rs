@@ -1,14 +1,17 @@
 use std::fmt::{self, Write as _};
 
+#[inline]
 pub(crate) fn escape_text_into(value: &str, out: &mut String) {
     escape_with(value, out, false);
 }
 
+#[inline]
 pub(crate) fn escape_attr_value_into(value: &str, out: &mut String) {
     escape_with(value, out, true);
 }
 
 // attr=true adds `"` to the escaped set; attribute values are double-quoted so `"` must be escaped.
+#[inline]
 fn escape_with(value: &str, out: &mut String, attr: bool) {
     let mut start = 0;
 
@@ -31,6 +34,7 @@ fn escape_with(value: &str, out: &mut String, attr: bool) {
     out.push_str(&value[start..]);
 }
 
+#[inline]
 pub(crate) fn push_display(out: &mut String, value: &impl fmt::Display) {
     let _ = write!(out, "{value}");
 }

@@ -6,6 +6,12 @@ The project follows Semantic Versioning while the public DSL is still young:
 patch releases should not intentionally break existing templates, and minor
 releases may add syntax or tighten diagnostics.
 
+## 0.10.0
+
+### Added
+
+- Improve code and add bench
+
 ## 0.8.0
 
 ### Added

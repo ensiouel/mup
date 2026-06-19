@@ -233,6 +233,10 @@ impl Markup {
         }
     }
 
+    pub(crate) fn has_template(&self) -> bool {
+        self.template.is_some()
+    }
+
     pub(crate) fn append_parts_to(&self, parts: &mut Vec<MarkupPart>) {
         if let Some(template) = self.template.as_ref() {
             for part in template {

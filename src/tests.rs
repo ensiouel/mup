@@ -1524,3 +1524,174 @@ fn supports_dashed_colon_and_at_prefixed_attribute_names() {
         r#"<div :data-value="foo" @event-name="bar"></div>"#
     );
 }
+
+#[test]
+fn supports_markup_const_while_break_and_continue() {
+    let mut values = [1, 2, 3, 4].into_iter();
+
+    let actual = markup! {
+        @const LABEL: &str = "value";
+
+        @while let Some(value) = values.next() {
+            @if value == 2 {
+                @continue;
+            }
+
+            @if value == 4 {
+                @break;
+            }
+
+            @let current = value * 10;
+            span data-label=LABEL { @current }
+        }
+
+        "done"
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<span data-label="value">10</span><span data-label="value">30</span>done"#
+    );
+}
+
+#[test]
+fn supports_turbofish_and_chained_call_nodes() {
+    mod helper {
+        pub fn label<T>(value: &str) -> String {
+            format!("{}:{value}", std::mem::size_of::<T>())
+        }
+    }
+
+    fn identity<T>(value: T) -> T {
+        value
+    }
+
+    let actual = markup! {
+        p { @identity::<String>("rust".to_owned()).to_uppercase() }
+        p { @identity::<Vec<Option<u8>>>(vec![Some(7)]).len() }
+        p { @helper::label::<u16>("path") }
+    };
+
+    assert_eq!(actual.as_str(), "<p>RUST</p><p>1</p><p>2:path</p>");
+}
+
+#[test]
+fn supports_index_tuple_and_call_chain_nodes() {
+    fn make_label() -> String {
+        "chain".to_owned()
+    }
+
+    let items = ["zero", "one"];
+    let pair = ("left", "right");
+
+    let actual = markup! {
+        p {
+            @items[1]
+            ":"
+            @pair.0
+            ":"
+            @make_label().to_uppercase()
+        }
+    };
+
+    assert_eq!(actual.as_str(), "<p>one:left:CHAIN</p>");
+}
+
+#[test]
+fn supports_rich_attribute_value_shorthands() {
+    mod helper {
+        pub fn label<T>(value: &str) -> String {
+            format!("{}:{value}", std::mem::size_of::<T>())
+        }
+    }
+
+    struct Kind;
+
+    impl Kind {
+        const NAME: &'static str = "assoc";
+
+        fn label() -> String {
+            "path".to_owned()
+        }
+    }
+
+    fn identity<T>(value: T) -> T {
+        value
+    }
+
+    let values = ["zero", "one"];
+    let pair = ("left", "right");
+    let attr = "data-dynamic";
+
+    let actual = markup! {
+        div
+            data-call=String::from("call").to_uppercase()
+            data-generic=identity::<String>("generic".to_owned()).to_uppercase()
+            data-path=helper::label::<u16>("path")
+            data-index=values[1]
+            data-tuple=pair.0
+            data-kind=Kind::NAME
+            "data-literal-path"=Kind::label().to_uppercase()
+            (attr)=identity::<&str>("dynamic")
+            :data-bound=identity::<&str>("bound")
+            @update=helper::label::<u8>("event")
+        {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<div data-call="CALL" data-generic="GENERIC" data-path="2:path" data-index="one" data-tuple="left" data-kind="assoc" data-literal-path="PATH" data-dynamic="dynamic" :data-bound="bound" @update="1:event"></div>"#
+    );
+}
+
+#[test]
+fn supports_struct_literal_update_props() {
+    struct Card {
+        title: String,
+        body: String,
+    }
+
+    impl Render for Card {
+        fn render(&self, _children: Option<Markup>) -> Markup {
+            let title = &self.title;
+            let body = &self.body;
+
+            markup! {
+                article {
+                    h1 { @title }
+                    p { @body }
+                }
+            }
+        }
+    }
+
+    let base = Card {
+        title: "base".to_owned(),
+        body: "body".to_owned(),
+    };
+    let title = "override".to_owned();
+
+    let actual = markup! {
+        @Card { title, ..base }
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        "<article><h1>override</h1><p>body</p></article>"
+    );
+}
+
+#[test]
+fn supports_keyword_and_special_literal_attribute_names() {
+    let actual = markup! {
+        label for="email" {}
+        script async defer {}
+        button "@click.prevent"="save" "x-data"="{ open: false }" {}
+        div.("hover:bg-blue-500").("sm:grid-cols-2") {}
+    };
+
+    assert_eq!(
+        actual.as_str(),
+        r#"<label for="email"></label><script async defer></script><button @click.prevent="save" x-data="{ open: false }"></button><div class="hover:bg-blue-500 sm:grid-cols-2"></div>"#
+    );
+}

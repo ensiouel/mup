@@ -1,5 +1,5 @@
-use crate::attrs::{push_boolean_attr, push_str_attr};
-use crate::html::{assert_valid_tag_name, assert_valid_void_tag_name};
+use crate::attrs::push_boolean_attr;
+use crate::html::{assert_valid_tag_name, assert_valid_void_tag_name, escape_attr_value_into};
 use crate::markup::{MarkupPart, push_markup_part};
 use crate::{AttributeName, AttributeValue, Attributes, ClassValue, Markup, Render};
 
@@ -16,19 +16,45 @@ impl Default for TemplateBuilder {
 }
 
 impl TemplateBuilder {
+    #[inline]
     pub fn new() -> Self {
+        // ponytail: 512 covers most templates with at most 2 reallocations instead of 10+
         Self {
-            current: String::new(),
+            current: String::with_capacity(512),
             parts: Vec::new(),
         }
     }
 
-    pub fn push_markup(&mut self, markup: &Markup) {
-        self.flush_current();
-        markup.append_parts_to(&mut self.parts);
+    /// Renders `value` into this builder directly, bypassing intermediate Markup allocation.
+    ///
+    /// Method form so it auto-derefs for both owned `TemplateBuilder` and `&mut TemplateBuilder`
+    /// call sites in macro-generated code.
+    #[doc(hidden)]
+    #[inline]
+    pub fn push_render<T>(&mut self, value: &T)
+    where
+        T: Render + ?Sized,
+    {
+        value.render_into_builder(self);
     }
 
+    #[inline]
+    pub fn push_markup(&mut self, markup: &Markup) {
+        if !markup.has_template() {
+            // ponytail: fast path — plain Markup has no slots/fragments, skip flush+parts
+            self.current.push_str(markup.as_str());
+        } else {
+            self.flush_current();
+            markup.append_parts_to(&mut self.parts);
+        }
+    }
+
+    #[inline]
     pub fn finish(mut self) -> Markup {
+        if self.parts.is_empty() {
+            // ponytail: fast path — no slots/fragments, current IS the final output
+            return Markup::raw(self.current);
+        }
         self.flush_current();
         Markup::from_parts(self.parts)
     }
@@ -56,6 +82,14 @@ pub fn push_start_tag(out: &mut String, tag: &str) {
     out.push_str(tag);
 }
 
+// ponytail: static tag — macro already validated name at compile time, skip runtime assert
+#[inline]
+pub fn push_start_tag_static(out: &mut String, tag: &str) {
+    out.push('<');
+    out.push_str(tag);
+}
+
+#[inline]
 pub fn finish_start_tag(out: &mut String) {
     out.push('>');
 }
@@ -65,8 +99,23 @@ pub fn finish_void_tag(out: &mut String, tag: &str) {
     out.push('>');
 }
 
+// ponytail: static tag — skip assert_valid_tag_name (already checked by push_start_tag_static),
+//           but still assert_valid_void_tag_name: the macro doesn't know which tags are void
+pub fn finish_void_tag_static(out: &mut String, tag: &str) {
+    assert_valid_void_tag_name(tag);
+    out.push('>');
+}
+
 pub fn push_end_tag(out: &mut String, tag: &str) {
     assert_valid_tag_name(tag);
+    out.push_str("</");
+    out.push_str(tag);
+    out.push('>');
+}
+
+// ponytail: static tag — macro already validated name at compile time, skip runtime assert
+#[inline]
+pub fn push_end_tag_static(out: &mut String, tag: &str) {
     out.push_str("</");
     out.push_str(tag);
     out.push('>');
@@ -80,6 +129,15 @@ where
     name.with_attr_name(&mut |name| value.render_attr_into(out, name));
 }
 
+// ponytail: static attr name validated by macro, skip assert_valid_attr_name
+#[inline]
+pub fn push_static_attr<V>(out: &mut String, name: &str, value: &V)
+where
+    V: AttributeValue + ?Sized,
+{
+    value.render_static_attr_into(out, name);
+}
+
 pub fn push_bool_attr<N>(out: &mut String, name: &N)
 where
     N: AttributeName + ?Sized,
@@ -87,29 +145,18 @@ where
     name.with_attr_name(&mut |name| push_boolean_attr(out, name));
 }
 
+// ponytail: static attr name validated by macro, skip assert_valid_attr_name
+#[inline]
+pub fn push_static_bool_attr(out: &mut String, name: &str) {
+    out.push(' ');
+    out.push_str(name);
+}
+
 pub fn push_attrs<A>(out: &mut String, attrs: &A)
 where
     A: Attributes + ?Sized,
 {
     attrs.render_attrs_into(out);
-}
-
-pub fn push_attr_segments<V>(out: &mut String, segments: &[&str], value: &V)
-where
-    V: AttributeValue + ?Sized,
-{
-    // Single segment skips the join allocation; multi-segment names are rare enough that this matters.
-    match segments {
-        [name] => value.render_attr_into(out, name),
-        _ => value.render_attr_into(out, &join_segments(segments)),
-    }
-}
-
-pub fn push_bool_attr_segments(out: &mut String, segments: &[&str]) {
-    match segments {
-        [name] => push_boolean_attr(out, name),
-        _ => push_boolean_attr(out, &join_segments(segments)),
-    }
 }
 
 pub fn push_class_value<V>(classes: &mut String, value: &V)
@@ -131,40 +178,28 @@ where
     }
 }
 
+#[inline]
 pub fn push_class_attr(out: &mut String, classes: &str) {
     if !classes.is_empty() {
-        push_str_attr(out, "class", classes);
+        // ponytail: "class" is always a valid attr name, skip assert_valid_attr_name
+        out.push_str(" class=\"");
+        escape_attr_value_into(classes, out);
+        out.push('"');
     }
 }
 
-pub fn push_prefixed_attr_segments<V>(out: &mut String, prefix: &str, segments: &[&str], value: &V)
+/// Writes one class value with attribute escaping directly into `out`.
+///
+/// Returns `true` when something was written (for the caller to decide whether
+/// to write a space separator before the next value).
+#[doc(hidden)]
+#[inline]
+pub fn push_class_direct<V>(out: &mut String, value: &V) -> bool
 where
-    V: AttributeValue + ?Sized,
+    V: ClassValue + ?Sized,
 {
-    value.render_attr_into(out, &build_prefixed_name(prefix, segments));
+    let start = out.len();
+    value.render_class_attr_into(out);
+    out.len() != start
 }
 
-pub fn push_bool_prefixed_attr_segments(out: &mut String, prefix: &str, segments: &[&str]) {
-    push_boolean_attr(out, &build_prefixed_name(prefix, segments));
-}
-
-fn build_prefixed_name(prefix: &str, segments: &[&str]) -> String {
-    let size = prefix.len()
-        + segments.iter().map(|s| s.len()).sum::<usize>()
-        + segments.len().saturating_sub(1);
-    let mut name = String::with_capacity(size);
-    name.push_str(prefix);
-    let mut iter = segments.iter();
-    if let Some(first) = iter.next() {
-        name.push_str(first);
-        for seg in iter {
-            name.push('-');
-            name.push_str(seg);
-        }
-    }
-    name
-}
-
-fn join_segments(segments: &[&str]) -> String {
-    build_prefixed_name("", segments)
-}
