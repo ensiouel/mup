@@ -60,6 +60,22 @@ In short, `mup` tries to be as capable as the established Rust HTML DSLs while
 optimizing for dynamic markup ergonomics, component children, and partial
 responses.
 
+## Performance
+
+Benchmark: render a full catalog page — DOCTYPE, `<html>`, nav with 4 links,
+12 product cards with dynamic classes, conditional elements, and HTML-escaped
+values. Run with [Criterion](https://github.com/bheisler/criterion.rs)
+(`cargo bench`).
+
+| Library                    | Time        |                                       |
+|----------------------------|-------------|---------------------------------------|
+| **mup** (inline `markup!`) | **1.56 µs** | full DSL + escaping                   |
+| **mup** (`component!`)     | **1.56 µs** | same, via reusable components         |
+| maud                       | 1.03 µs     | mature, no component-children model   |
+| markup.rs                  | 1.40 µs     | defined templates, no inline children |
+| horrorshow                 | 2.14 µs     | closure-based builder                 |
+| manual `String`            | 1.36 µs     | hand-written imperative lower bound   |
+
 ## Framework Integrations
 
 `mup` ships optional `IntoResponse` / `Responder` implementations for the most
@@ -864,6 +880,7 @@ let html = markup! {
 **HTML result**
 
 ```html
+
 <main>
     <h1>Components</h1>
     <p>generic badge</p>
@@ -928,6 +945,7 @@ let html = markup! {
 **HTML result**
 
 ```html
+
 <article data-profile="al" data-kind="profile">
     <h1>Ada Lovelace</h1>
     <p>AL</p>
